@@ -120,6 +120,11 @@ const INSTALL_TABS = [
   { id: 'global',        label: '全域' },
   { id: 'cursor',        label: 'Cursor' },
   { id: 'claude-code',   label: 'Claude Code' },
+  { id: 'claude-desktop', label: 'Claude Desktop' },
+  { id: 'codex',         label: 'Codex' },
+  { id: 'gemini',        label: 'Gemini' },
+  { id: 'antigravity',   label: 'Antigravity' },
+  { id: 'kiro',          label: 'Kiro' },
   { id: 'github',        label: 'GitHub URL' },
 ]
 
@@ -128,11 +133,16 @@ const skillName = computed(() => route.params.name)
 const installCmd = computed(() => {
   const name = skillName.value
   const cmds = {
-    default:     `agentskills pull ${name}`,
-    global:      `agentskills pull ${name} --global`,
-    cursor:      `agentskills pull ${name} --agent cursor`,
-    'claude-code': `agentskills pull ${name} --agent claude-code`,
-    github:      `agentskills pull github:agentskills/${name}`,
+    default:          `agentskills pull ${name}`,
+    global:           `agentskills pull ${name} --global`,
+    cursor:           `agentskills pull ${name} --agent cursor`,
+    'claude-code':    `agentskills pull ${name} --agent claude-code`,
+    'claude-desktop': `agentskills pull ${name} --agent claude-desktop`,
+    codex:            `agentskills pull ${name} --agent codex`,
+    gemini:           `agentskills pull ${name} --agent gemini`,
+    antigravity:      `agentskills pull ${name} --agent antigravity`,
+    kiro:             `agentskills pull ${name} --agent kiro`,
+    github:           `agentskills pull github:agentskills/${name}`,
   }
   return cmds[activeTab.value] || cmds.default
 })

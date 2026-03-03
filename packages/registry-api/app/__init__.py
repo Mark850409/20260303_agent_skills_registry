@@ -18,12 +18,17 @@ def create_app(config_name="default"):
     migrate.init_app(app, db)
     CORS(app, origins="*")
 
-    # Register blueprints
-    from app.routes.skills import skills_bp
-    from app.routes.auth import auth_bp
+    from flask_smorest import Api
+    api = Api(app)
 
-    app.register_blueprint(skills_bp, url_prefix="/api/skills")
-    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    # Register blueprints (using flask-smorest)
+    from app.routes.skills import skills_blp
+    from app.routes.auth import auth_blp
+    from app.routes.admin import admin_blp
+
+    api.register_blueprint(skills_blp)
+    api.register_blueprint(auth_blp)
+    api.register_blueprint(admin_blp)
 
     # Health check
     @app.route("/api/health")

@@ -20,53 +20,84 @@ def parse_skill_md(path: Path) -> dict:
     if len(parts) < 3:
         raise ValueError("SKILL.md YAML 格式錯誤")
         
-    meta = yaml.safe_load(parts[1])
+    meta = yaml.safe_load(parts[1]) if parts[1].strip() else {}
+    if not isinstance(meta, dict):
+        meta = {}
     meta["skill_md"] = content
     return meta
+
+def push_single_skill(skill_dir: Path, user_info: dict = None):
+    """發布單一 Skill。"""
+    skill_md_path = skill_dir / "SKILL.md"
+    try:
+        meta = parse_skill_md(skill_md_path)
+    except Exception as e:
+        console.print(f"[red]✗ 解析 {skill_dir.name} 失敗: {e}[/red]")
+        return False
+
+    # 自動補全缺失欄位
+    if "name" not in meta:
+        meta["name"] = skill_dir.name
+    
+    if "version" not in meta:
+        meta["version"] = "1.0.0"
+        console.print(f"[dim]提示: {meta['name']} 缺少版本，已自動設為 1.0.0[/dim]")
+
+    if "author" not in meta:
+        if user_info and user_info.get("username"):
+            meta["author"] = user_info["username"]
+        else:
+            meta["author"] = "anonymous"
+        console.print(f"[dim]提示: {meta['name']} 缺少作者，已自動設為 {meta['author']}[/dim]")
+
+    if "description" not in meta:
+        meta["description"] = f"Skill: {meta['name']}"
+
+    console.print(f"[dim]正在發布 [bold]{meta['name']}@{meta['version']}[/bold]...[/dim]")
+    
+    try:
+        api.push_skill(meta)
+        console.print(f"[green]✓ {meta['name']} 發布成功！[/green]")
+        return True
+    except Exception as e:
+        if "409" in str(e):
+            console.print(f"[yellow]⚠ 版本衝突: {meta['name']}@{meta['version']} 已存在。[/yellow]")
+        else:
+            console.print(f"[red]✗ 發布 {meta['name']} 失敗: {e}[/red]")
+        return False
 
 @click.command()
 @click.argument("path", default=".")
 def push_cmd(path: str):
     """打包並發布 Skill 到 Registry。
-
-    \b
-    範例:
-      agentskills push .
-      agentskills push ./my-skill
+    
+    支援批量發布：若指定目錄不含 SKILL.md，將搜尋所有含 SKILL.md 的子目錄。
     """
-    skill_dir = Path(path)
-    skill_md_path = skill_dir / "SKILL.md"
+    root_dir = Path(path)
     
-    if not skill_md_path.exists():
-        console.print(f"[red]✗ 在 {skill_dir} 中找不到 SKILL.md[/red]")
-        return
-
+    # 先獲取使用者資訊，用於補全作者
+    user_info = None
     try:
-        meta = parse_skill_md(skill_md_path)
-    except Exception as e:
-        console.print(f"[red]✗ 解析失敗: {e}[/red]")
-        return
+        user_info = api.get_me()
+    except:
+        pass
 
-    # Verify required fields in YAML
-    required = ["name", "version", "description", "author"]
-    missing = [f for f in required if f not in meta]
-    if missing:
-        console.print(f"[red]✗ SKILL.md 缺少必要欄位: {missing}[/red]")
-        return
+    # 判斷是單一 Skill 還是批量
+    skill_md_path = root_dir / "SKILL.md"
+    if skill_md_path.exists():
+        push_single_skill(root_dir, user_info)
+    else:
+        # 搜尋子目錄
+        console.print(f"[dim]正在搜尋 {root_dir} 下的技能...[/dim]")
+        found_skills = [p.parent for p in root_dir.glob("*/SKILL.md")]
+        if not found_skills:
+            console.print(f"[red]✗ 在 {root_dir} 或其子目錄中找不到任何 SKILL.md[/red]")
+            return
 
-    console.print(f"[dim]正在發布 [bold]{meta['name']}@{meta['version']}[/bold]...[/dim]")
-    
-    try:
-        # TODO: 未來可以改為上傳 tar.gz 以包含 scripts/ 等目錄
-        # 目前 API 支援直接傳送 JSON Payload
-        api.push_skill(meta)
-        console.print(f"[green]✓ 發布成功！[/green] 造訪 http://localhost:5173/skills/{meta['name']} 查看。")
-    except Exception as e:
-        if "409" in str(e):
-            console.print(f"[yellow]⚠ 版本衝突: {meta['name']}@{meta['version']} 已經存在於 Registry。[/yellow]")
-            console.print("[dim]提示: 請修改 SKILL.md 中的 version 欄位 (例如改為 1.0.1) 後再試。[/dim]")
-        elif "401" in str(e):
-            console.print(f"[red]✗ 發布失敗: {e}[/red]")
-            console.print("[yellow]提示: 請先執行 `agentskills login`[/yellow]")
-        else:
-            console.print(f"[red]✗ 發布失敗: {e}[/red]")
+        success_count = 0
+        for skill_dir in found_skills:
+            if push_single_skill(skill_dir, user_info):
+                success_count += 1
+        
+        console.print(f"\n[green]ℹ 完成！成功發布 {success_count} 個技能。[/green]")
+

@@ -10,7 +10,11 @@ services:
       - DATABASE_URL=sqlite:////app/data/registry.db
     volumes:
       - ./packages/registry-api:/app
-      - api_data:/app/data
+      - ./packages/cli:/cli
+    command: >
+      sh -c "if [ -d '/cli' ]; then pip install -e /cli; fi && python wsgi.py"
+
+
     depends_on: []
 
   ui:
@@ -27,5 +31,7 @@ services:
     depends_on:
       - api
 
-volumes:
-  api_data:
+
+# 移除 volumes 定義，因為改用 bind mount
+
+

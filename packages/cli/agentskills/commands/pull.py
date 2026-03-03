@@ -12,13 +12,19 @@ from git import Repo
 
 console = Console()
 
+def remove_readonly(func, path, _):
+    """清除 Windows 唯讀屬性的回呼函式，用於 shutil.rmtree。"""
+    import stat
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
+
 def install_from_bytes(content: bytes, skill_name: str, target_dir: Path):
     """從 Registry 下載的 tar.gz 位元組安裝。"""
     target_dir.mkdir(parents=True, exist_ok=True)
     skill_path = target_dir / skill_name
     
     if skill_path.exists():
-        shutil.rmtree(skill_path)
+        shutil.rmtree(skill_path, onerror=remove_readonly)
     
     with tarfile.open(fileobj=io.BytesIO(content), mode="r:gz") as tar:
         # 由於 tar 裡面通常包含一個頂層目錄，我們要把內容解壓到 skill_path
@@ -32,41 +38,87 @@ def install_from_git(url: str, target_dir: Path, skill_dir: str = ""):
     # 建立臨時目錄
     tmp_path = Path(".agentskills-tmp")
     if tmp_path.exists():
-        shutil.rmtree(tmp_path)
+        shutil.rmtree(tmp_path, onerror=remove_readonly)
         
     console.print(f"[dim]正在選取 Git 儲存庫: {url}...[/dim]")
     
-    # Git URL 格式處理 (github:user/repo -> https://github.com/user/repo)
+    # Git URL 格式處理
     clean_url = url
     if url.startswith("github:"):
         clean_url = f"https://github.com/{url.split(':', 1)[1]}"
     elif url.startswith("gitlab:"):
         clean_url = f"https://gitlab.com/{url.split(':', 1)[1]}"
 
-    Repo.clone_from(clean_url, tmp_path)
+    try:
+        Repo.clone_from(clean_url, tmp_path, depth=1)
+    except Exception as e:
+        if tmp_path.exists():
+            shutil.rmtree(tmp_path, onerror=remove_readonly)
+        raise e
     
-    # 確定原始 Skill 目錄
+    # 邏輯優化：偵測來源路徑
     source_path = tmp_path
+    
+    # 如果使用者指定了 --skill 子目錄
     if skill_dir:
         source_path = tmp_path / skill_dir
         if not source_path.exists():
-            shutil.rmtree(tmp_path)
-            raise ValueError(f"Git 儲存庫中找不到指定目錄: {skill_dir}")
-            
-    # 如果 source_path 下沒有 SKILL.md，給警告但繼續
-    if not (source_path / "SKILL.md").exists():
+            # 嘗試在 skills/ 下找
+            if (tmp_path / "skills" / skill_dir).exists():
+                source_path = tmp_path / "skills" / skill_dir
+            else:
+                shutil.rmtree(tmp_path, onerror=remove_readonly)
+                raise ValueError(f"Git 儲存庫中找不到指定目錄: {skill_dir}")
+    
+    # 自動偵測：如果根目錄沒有 SKILL.md 但有 skills/ 目錄，且裡面只有一個目錄，或者是想要拉取整個內容
+    elif not (tmp_path / "SKILL.md").exists():
+        if (tmp_path / "skills").is_dir():
+            # 這裡不自動進入，除非我們確定目標。
+            # 但使用者反映多了一層，是因為我們把含有多個技能的 'skills' 目錄整層拷貝過去了。
+            source_path = tmp_path / "skills"
+            console.print("[dim]提示: 偵測到 Monorepo 結構，將從 'skills/' 目錄安裝。[/dim]")
+
+    # 確定目標名稱：如果 source_path 是臨時目錄下的某個子目錄，取該子目錄名。
+    # 如果 source_path 就是 tmp_path，取倉庫名。
+    if skill_dir:
+        target_name = skill_dir
+    elif source_path.name != ".agentskills-tmp":
+        target_name = source_path.name
+    else:
+        target_name = clean_url.split("/")[-1].replace(".git", "")
+
+    # 如果目標路徑下原本就有東西，先清除
+    final_path = target_dir / target_name
+    if final_path.exists():
+        shutil.rmtree(final_path, onerror=remove_readonly)
+        
+    # 關鍵修正：如果是要安裝「多個技能」到技能目錄，我們應該遍歷複製，而不是把父目錄拷貝進去。
+    # 但這裡的設計是 pull 一個「技能」。如果 source_path 下面是一堆技能子目錄（且沒有 SKILL.md），
+    # 我們應該把那些子目錄分別拷貝到 target_dir。
+    
+    if not (source_path / "SKILL.md").exists() and any(p.is_dir() and (p / "SKILL.md").exists() for p in source_path.iterdir()):
+        # 這是一個「技能集合」目錄，我們將所有子技能拷貝到 target_dir
+        count = 0
+        for item in source_path.iterdir():
+            if item.is_dir() and (item / "SKILL.md").exists():
+                dest = target_dir / item.name
+                if dest.exists():
+                    shutil.rmtree(dest, onerror=remove_readonly)
+                shutil.copytree(item, dest)
+                count += 1
+        shutil.rmtree(tmp_path, onerror=remove_readonly)
+        return f"{count} 個技能 (來自 {target_name})"
+    else:
+        # 單一技能安裝
+        shutil.copytree(source_path, final_path)
+        
+    if not (final_path / "SKILL.md").exists():
         console.print("[yellow]⚠️  警告: 安裝路徑下找不到 SKILL.md，這可能不是一個有效的 Agent Skill。[/yellow]")
 
-    # 確定目標名稱 (取 URL 最後一段或 dir 名稱)
-    target_name = skill_dir if skill_dir else clean_url.split("/")[-1].replace(".git", "")
-    final_path = target_dir / target_name
-    
-    if final_path.exists():
-        shutil.rmtree(final_path)
-        
-    shutil.copytree(source_path, final_path)
-    shutil.rmtree(tmp_path)
+    shutil.rmtree(tmp_path, onerror=remove_readonly)
     return target_name
+
+
 
 @click.command()
 @click.argument("name_or_url")

@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app import create_app, db
-from app.models import Skill, SkillVersion
+from app.models import Skill, SkillVersion, User
 from datetime import datetime, timezone
 
 SEED_SKILLS = [
@@ -187,11 +187,45 @@ Automatically generate comprehensive unit and integration tests.
 ]
 
 
+import hashlib
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
 def seed():
     app = create_app("development")
     with app.app_context():
         db.create_all()
 
+        # 1. 建立管理員用戶
+        admin = User.query.filter_by(username="admin").first()
+        if not admin:
+            admin = User(
+                username="admin", 
+                email="admin@example.com", 
+                role="admin", 
+                permissions=["*:*"]
+            )
+            admin.api_token_hash = _hash_token("admin-token-123")
+            db.session.add(admin)
+            print("[OK] Created Admin user: admin")
+        
+        # 2. 建立一個維護者用戶
+        maintainer = User.query.filter_by(username="maintainer").first()
+        if not maintainer:
+            maintainer = User(
+                username="maintainer", 
+                email="maintainer@example.com", 
+                role="maintainer", 
+                permissions=["skill:create", "skill:update"]
+            )
+            maintainer.api_token_hash = _hash_token("maintainer-token-123")
+            db.session.add(maintainer)
+            print("[OK] Created Maintainer user: maintainer")
+
+        db.session.flush()
+
+        # 3. 建立技能並關聯管理員
         for data in SEED_SKILLS:
             existing = Skill.query.filter_by(name=data["name"]).first()
             if existing:
@@ -207,6 +241,7 @@ def seed():
                 repository=data["repository"],
                 latest_version=data["version"],
                 downloads=0,
+                owner_id=admin.id
             )
             db.session.add(skill)
             db.session.flush()

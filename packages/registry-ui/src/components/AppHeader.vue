@@ -11,25 +11,82 @@
         <RouterLink to="/skills" class="nav-link" :class="{ active: $route.path.startsWith('/skills') }">
           瀏覽
         </RouterLink>
-        <RouterLink to="/publish" class="nav-link" :class="{ active: $route.path === '/publish' }">
+        <RouterLink v-if="authStore.hasPermission('skill:create')" to="/publish" class="nav-link" :class="{ active: $route.path === '/publish' }">
           發布
+        </RouterLink>
+        <RouterLink v-if="authStore.isAdmin" to="/admin" class="nav-link" :class="{ active: $route.path === '/admin' }">
+          管理
         </RouterLink>
         <a href="https://github.com/agentskills/registry" target="_blank" class="nav-link">
           GitHub
         </a>
       </nav>
 
-      <RouterLink to="/publish" class="btn-primary" style="font-size:0.85rem;padding:0.45rem 1rem;">
-        ＋ 發布 Skill
-      </RouterLink>
+      <div class="header-actions">
+        <template v-if="authStore.isAuthenticated">
+          <div class="user-info">
+            <span class="username">{{ authStore.user?.username }}</span>
+            <button class="btn-logout" @click="handleLogout">登出</button>
+          </div>
+        </template>
+        <template v-else>
+          <RouterLink to="/login" class="btn-ghost" style="font-size:0.85rem;padding:0.45rem 1rem;">
+            登入
+          </RouterLink>
+        </template>
+        
+        <RouterLink v-if="authStore.hasPermission('skill:create')" to="/publish" class="btn-primary" style="font-size:0.85rem;padding:0.45rem 1rem;">
+          ＋ 發布 Skill
+        </RouterLink>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/store/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/')
+}
 </script>
 
 <style scoped>
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.85rem;
+}
+.username {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.btn-logout {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-logout:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
 .app-header {
   position: sticky;
   top: 0;

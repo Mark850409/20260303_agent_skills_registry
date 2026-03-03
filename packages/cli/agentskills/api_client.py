@@ -20,6 +20,11 @@ def save_token(token: str):
     CONFIG_PATH.write_text(f"token={token}\n", encoding="utf-8")
 
 
+def logout():
+    if CONFIG_PATH.exists():
+        CONFIG_PATH.unlink()
+
+
 def _headers() -> dict:
     token = get_token()
     h = {"Content-Type": "application/json"}
@@ -47,14 +52,22 @@ def get_skill(name: str, version: str | None = None) -> dict:
 
 
 def download_skill(name: str, version: str | None = None) -> bytes:
+    token = get_token()
+    if not token:
+        raise ValueError("請先執行 `agentskills login` 登入 Registry 以取得下載權限。")
+        
     url = f"{REGISTRY_URL}/api/skills/{name}"
     url += f"/{version}/download" if version else "/download"
-    resp = httpx.get(url, timeout=60, follow_redirects=True)
+    resp = httpx.get(url, headers=_headers(), timeout=60, follow_redirects=True)
     resp.raise_for_status()
     return resp.content
 
 
 def push_skill(payload: dict) -> dict:
+    token = get_token()
+    if not token:
+        raise ValueError("請先執行 `agentskills login` 登入 Registry 以取得發布權限。")
+
     resp = httpx.post(
         f"{REGISTRY_URL}/api/skills",
         json=payload,
@@ -73,3 +86,13 @@ def login(username: str, email: str) -> str:
     )
     resp.raise_for_status()
     return resp.json()["api_token"]
+
+
+def get_me() -> dict:
+    resp = httpx.get(
+        f"{REGISTRY_URL}/api/auth/me",
+        headers=_headers(),
+        timeout=15,
+    )
+    resp.raise_for_status()
+    return resp.json()
