@@ -61,16 +61,21 @@ class AuthLogin(MethodView):
 
         user = User.query.filter_by(username=username).first()
         if not user:
+            is_admin = (username == "admin")
             user = User(
                 username=username, 
                 email=email,
-                role="maintainer",
-                permissions=["skill:create", "skill:update"]
+                role="admin" if is_admin else "maintainer",
+                permissions=["*:*"] if is_admin else ["skill:create", "skill:update"]
             )
             db.session.add(user)
         else:
-            # 向下兼容：替尚未有權限的現有用戶補上發布權限
-            if not user.permissions and user.role != "admin":
+            is_admin = (username == "admin")
+            if is_admin:
+                user.role = "admin"
+                user.permissions = ["*:*"]
+            elif not user.permissions and user.role != "admin":
+                # 向下兼容：替尚未有權限的現有用戶補上發布權限
                 user.role = "maintainer"
                 user.permissions = ["skill:create", "skill:update"]
 
