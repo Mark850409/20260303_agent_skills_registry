@@ -90,7 +90,7 @@ docker compose exec api python scripts/seed.py
 ```
 
 - **前端 UI**: [http://localhost:5173](http://localhost:5173)
-- **後端 API**: [http://localhost:5000](http://localhost:5000)
+- **後端 API**: [http://localhost:5006](http://localhost:5006)
 
 ---
 

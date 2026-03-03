@@ -10,6 +10,6 @@ COPY . .
 
 RUN mkdir -p data/bundles
 
-EXPOSE 5000
+EXPOSE 5006
 
 CMD ["python", "wsgi.py"]

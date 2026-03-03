@@ -4,7 +4,7 @@ import httpx
 from pathlib import Path
 
 CONFIG_PATH = Path.home() / ".agentskills" / "config"
-REGISTRY_URL = os.environ.get("AGENTSKILLS_REGISTRY", "http://localhost:5000")
+REGISTRY_URL = os.environ.get("AGENTSKILLS_REGISTRY", "http://localhost:5006")
 
 
 def get_token() -> str | None:

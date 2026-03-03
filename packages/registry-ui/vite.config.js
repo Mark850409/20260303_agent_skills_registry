@@ -5,7 +5,7 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig(({ mode }) => {
     // 載入環境變數
     const env = loadEnv(mode, process.cwd(), '')
-    const apiTarget = env.VITE_API_PROXY_TARGET || 'http://api:5000'
+    const apiTarget = env.VITE_API_PROXY_TARGET || 'http://api:5006'
 
     return {
         plugins: [vue()],
