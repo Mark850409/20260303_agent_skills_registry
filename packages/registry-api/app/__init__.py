@@ -13,6 +13,10 @@ def create_app(config_name="default"):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
 
+    # 啟用 ProxyFix 支援 HTTPS 和 Reverse Proxy
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
     # Extensions
     db.init_app(app)
     migrate.init_app(app, db)

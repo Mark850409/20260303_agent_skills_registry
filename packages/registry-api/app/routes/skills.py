@@ -90,7 +90,16 @@ class Skills(MethodView):
         else:
             # Check ownership for updates
             if user.role != "admin" and skill.owner_id != user.id:
-                abort(403, message="You do not own this skill and cannot update it")
+                # 為了向下相容：
+                # 1. 技能未绑定的話(None)，就由這名使用者認領
+                # 2. 技能綁定在 admin(id=1) 身上，由於這些是預設內建或指令生成的技能，我們開放任何人進行覆寫與更新
+                if skill.owner_id is None:
+                    skill.owner_id = user.id
+                elif skill.owner_id == 1:
+                    # 不改 owner_id，但允許更新此技能
+                    pass
+                else:
+                    abort(403, message="You do not own this skill and cannot update it")
                 
             skill.description = data["description"]
             skill.tags = data.get("tags", skill.tags)

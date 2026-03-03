@@ -36,8 +36,12 @@ def require_permission(perm):
             if user.role == "admin":
                 return f(*args, **kwargs)
             
-            # Check for specific permission bit
+            # 為了向下相容：如果非 admin 用戶的權限欄位是空的，視為具有基本發布能力
             user_perms = user.permissions or []
+            if not user_perms and user.role != "admin":
+                user_perms = ["skill:create", "skill:update"]
+
+            # Check for specific permission bit
             if perm in user_perms:
                 return f(*args, **kwargs)
             
@@ -57,8 +61,18 @@ class AuthLogin(MethodView):
 
         user = User.query.filter_by(username=username).first()
         if not user:
-            user = User(username=username, email=email)
+            user = User(
+                username=username, 
+                email=email,
+                role="maintainer",
+                permissions=["skill:create", "skill:update"]
+            )
             db.session.add(user)
+        else:
+            # 向下兼容：替尚未有權限的現有用戶補上發布權限
+            if not user.permissions and user.role != "admin":
+                user.role = "maintainer"
+                user.permissions = ["skill:create", "skill:update"]
 
         # Generate opaque API token
         raw_token = secrets.token_urlsafe(32)
