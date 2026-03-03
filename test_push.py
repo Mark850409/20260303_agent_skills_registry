@@ -1,7 +1,7 @@
 import httpx
 import sys
 
-url = 'http://zanehsu.myqnapcloud.com:15001/api'
+url = 'https://zanehsu.myqnapcloud.com:15001/api'
 
 print("Attempting login...")
 try:
