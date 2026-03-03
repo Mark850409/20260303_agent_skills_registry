@@ -1,0 +1,157 @@
+# Agent Skills Registry 🧠
+
+> 開源的 AI Agent Skills 登錄平台，讓開發者發布、搜尋、安裝與分享 Agent Skills。
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D.svg)](https://vuejs.org)
+
+## 📦 專案結構
+
+```
+agent-skills-registry/
+├── packages/
+│   ├── registry-api/    # 後端 REST API（Python Flask）
+│   ├── registry-ui/     # 前端網站（Vue.js 3 + Vite）
+│   ├── cli/             # 命令列工具（agentskills）
+│   └── skill-schema/    # Skill Bundle 規格與驗證器
+├── skills/              # 官方範例 Skills
+├── docs/                # 文件
+└── docker-compose.yml
+```
+
+## 🚀 快速開始
+
+### 安裝 CLI
+
+```bash
+pip install agentskills
+```
+
+### CLI 指令
+
+| 指令 | 說明 |
+|------|------|
+| `agentskills init <name>` | 建立 Skill 骨架目錄 |
+| `agentskills login` | 儲存 API Token 至本地設定 |
+| `agentskills push <path>` | 打包並上傳 Skill Bundle |
+| `agentskills pull <name>[@version]` | 下載並解壓 Skill Bundle |
+| `agentskills search <keyword>` | 搜尋平台上的 Skills |
+| `agentskills vendor <name>[@version]` | 將 Skill 鎖定到本地 vendor 目錄 |
+| `agentskills vendor` | 從 lock file 還原所有 vendored Skills |
+| `agentskills vendor --remove <name>` | 移除已 vendor 的 Skill |
+
+### 從 Git 安裝
+
+```bash
+# 從 GitHub 安裝
+agentskills pull github:user/my-skills
+
+# 從任意 Git URL 安裝
+agentskills pull https://github.com/user/my-skills.git
+
+# 指定 Agent
+agentskills pull web-search --agent cursor
+agentskills pull web-search --global  # 全域安裝
+```
+
+## 🤖 支援的 Agents
+
+| Agent | 識別名稱 | 全域技能目錄 |
+|-------|----------|-------------|
+| Antigravity | `antigravity` | `~/.gemini/antigravity/skills/` |
+| Claude Code | `claude-code` | `~/.claude/skills/` |
+| Cursor | `cursor` | `.cursor/skills/` |
+| Codex | `codex` | `.codex/skills/` |
+| OpenCode | `opencode` | `.opencode/skills/` |
+| GitHub Copilot | `github-copilot` | `.github/copilot/skills/` |
+| Roo Code | `roo` | `.roo/skills/` |
+
+## 📁 Skill Bundle 結構
+
+```
+my-skill/
+├── SKILL.md       ← 必填：YAML frontmatter + Markdown 指令
+├── scripts/       ← 選填：Agent 可執行的腳本
+├── references/    ← 選填：RAG / few-shot 參考文件
+└── assets/        ← 選填：靜態模板與資源
+```
+
+## � 本地開發環境 (Docker)
+
+本專案使用 Docker Compose 快速啟動完整環境。
+
+```bash
+# 1. 啟動所有服務（API & UI）
+docker compose up -d --build
+
+# 2. 初始化資料庫資料 (Seed)
+docker compose exec api python scripts/seed.py
+```
+
+- **前端 UI**: [http://localhost:5173](http://localhost:5173)
+- **後端 API**: [http://localhost:5000](http://localhost:5000)
+
+---
+
+## 🛠️ CLI 操作指南 (agentskills)
+
+### 1. 安裝 CLI
+在專案目錄下：
+```bash
+cd packages/cli
+pip install -e .
+```
+
+### 2. 建立新的 Skill
+```bash
+# 建立一個名為 my-tool 的技能骨架
+agentskills init my-cool-tool
+```
+> [!NOTE]
+> 專案以強制使用 **UTF-8** 編碼寫入檔案，解決 Windows 環境下的亂碼問題。
+
+### 3. 發布 Skill 到 Registry
+進入 Skill 目錄編輯 `SKILL.md` 後，執行：
+```bash
+agentskills push ./my-cool-tool
+```
+發布成功後，可直接在瀏覽器造訪 [http://localhost:5173/skills/my-cool-tool](http://localhost:5173/skills/my-cool-tool) 查看。
+
+### 4. 搜尋與下載
+```bash
+# 搜尋技能
+agentskills search web-search
+
+# 下載並安裝技能到當前專案
+agentskills pull web-search --agent cursor
+```
+
+---
+
+## 🖥️ GUI 介面功能
+
+造訪 [http://localhost:5173](http://localhost:5173) 即可使用完整的 Web 介面：
+
+1. **瀏覽與搜尋**: 支援關鍵字搜尋、標籤篩選與熱門度（下載數）排序。
+2. **技能詳情**: 提供 Markdown 渲染的指令預覽、版本歷史、作者資訊與一鍵複製安裝指令。
+3. **發布介面**: 支援透過網頁端直接上傳 YAML 規格進行發布（開發中）。
+4. **Agent 自動偵測**: 指導使用者如何將技能配置到不同的 AI Agents 中。
+
+---
+
+## 🤖 支援的 Agents (全域路徑)
+
+| Agent | 識別名稱 | 全域技能目錄 |
+|-------|----------|-------------|
+| Antigravity | `antigravity` | `~/.gemini/antigravity/skills/` |
+| Claude Code | `claude-code` | `~/.claude/skills/` |
+| Cursor | `cursor` | `.cursor/skills/` |
+| Roo Code | `roo` | `.roo/skills/` |
+
+---
+
+## 📄 License
+
+MIT
+

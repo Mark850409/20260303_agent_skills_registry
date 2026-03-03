@@ -1,0 +1,31 @@
+services:
+  api:
+    build:
+      context: ./packages/registry-api
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=sqlite:////app/data/registry.db
+    volumes:
+      - ./packages/registry-api:/app
+      - api_data:/app/data
+    depends_on: []
+
+  ui:
+    build:
+      context: ./packages/registry-ui
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_PROXY_TARGET=http://api:5000
+    volumes:
+      - ./packages/registry-ui:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  api_data:
