@@ -21,36 +21,59 @@ admin_blp = Blueprint("admin", __name__, url_prefix="/api/admin", description="A
 
 # ── 預設分類定義 ────────────────────────────────────────────────────
 CATEGORIES = [
-    {"id": "coding",       "label": "程式開發",     "icon": "💻"},
-    {"id": "web",          "label": "Web / UI",    "icon": "🌐"},
-    {"id": "data",         "label": "資料分析",     "icon": "📊"},
-    {"id": "writing",      "label": "文案 / 文件",  "icon": "✍️"},
-    {"id": "ai",           "label": "AI / Agent",  "icon": "🤖"},
-    {"id": "design",       "label": "設計 / 創作",  "icon": "🎨"},
-    {"id": "productivity", "label": "效率工具",     "icon": "⚡"},
-    {"id": "devops",       "label": "DevOps",      "icon": "🛠️"},
+    {"id": "coding",        "label": "程式開發",     "icon": "💻"},
+    {"id": "web",           "label": "Web 瀏覽",    "icon": "🌐"},
+    {"id": "search",        "label": "網路搜尋",     "icon": "🔍"},
+    {"id": "data",          "label": "資料分析",     "icon": "📊"},
+    {"id": "database",      "label": "資料庫",      "icon": "🗄️"},
+    {"id": "ai",            "label": "AI 智能",      "icon": "🤖"},
+    {"id": "productivity",  "label": "效率工具",     "icon": "⚡"},
+    {"id": "writing",       "label": "文案文件",     "icon": "✍️"},
+    {"id": "design",        "label": "設計創作",     "icon": "🎨"},
+    {"id": "devops",        "label": "運維部署",     "icon": "🛠️"},
+    {"id": "communication", "label": "通訊聯絡",     "icon": "💬"},
+    {"id": "maps",          "label": "地圖數據",     "icon": "📍"},
+    {"id": "finance",       "label": "金融科技",     "icon": "💰"},
+    {"id": "science",       "label": "科學計算",     "icon": "🧪"},
+    {"id": "travel",        "label": "旅遊生活",     "icon": "✈️"},
+    {"id": "health",        "label": "健康醫療",     "icon": "🏥"},
+    {"id": "other",         "label": "其他",        "icon": "📦"},
 ]
 
 CATEGORY_IDS = [c["id"] for c in CATEGORIES]
 
 
-def auto_classify(skill: Skill) -> str | None:
-    """以啟發式規則自動判斷技能分類，回傳 category id 或 None。"""
+def auto_classify(target) -> str | None:
+    """以啟發式規則自動判斷分類，回傳 category id 或 None。支援 Skill 或 MCPServer 物件。"""
+    name = getattr(target, "name", "")
+    description = getattr(target, "description", "")
+    display_name = getattr(target, "display_name", "")
+    tags = getattr(target, "tags", [])
+    
     text = " ".join([
-        skill.name or "",
-        skill.description or "",
-        " ".join(skill.tags or [])
+        name or "",
+        display_name or "",
+        description or "",
+        " ".join(tags or [])
     ]).lower()
 
     rules = [
         ("devops",       r"devops|docker|deploy|kubernetes|k8s|cloud|infra|ci.cd|pipeline"),
-        ("data",         r"data|analytics|excel|xlsx|csv|spreadsheet|chart|database|sql|etl|bi"),
+        ("data",         r"data|analytics|excel|xlsx|csv|spreadsheet|chart|etl|bi"),
+        ("database",     r"database|sql|mysql|postgres|sqlite|query|storage|mongodb|redis|prisma"),
+        ("maps",         r"map|geo|location|address|gps|place|route|navigation|earth"),
+        ("finance",      r"finance|crypto|stock|trading|wallet|payment|billing|stripe|bank|tax"),
+        ("communication",r"slack|email|mail|discord|telegram|message|notification|chat|twilio"),
+        ("science",      r"science|math|calculation|physics|chem|biology|research|statist"),
+        ("travel",       r"travel|flight|hotel|booking|restaurant|food|weather|lifestyle"),
+        ("health",       r"health|fitness|medical|doctor|hospital|workout|nutrition"),
         ("writing",      r"\bdoc\b|docs|documentation|writing|report|blog|markdown|pdf|word|docx|pptx|slide|coauthor|letter"),
-        ("web",          r"web|html|css|frontend|browser|ui |ux |playwright|webapp|artifact|react|vue|tailwind"),
+        ("search",       r"search|exa\b|google|bing|tavily|duckduckgo|web.search"),
+        ("web",          r"web|html|css|frontend|browser\b|ui |ux |playwright|webapp|artifact|react|vue|tailwind"),
         ("design",       r"design|art\b|image|graphic|illustrat|generative|algorithmic|poster|brand|theme|visual|gif|p5\.js"),
-        ("productivity", r"productivity|communic|slack|email|meeting|planning|internal.comm"),
-        ("ai",           r"\bai\b|llm|rag|knowledge.base|mcp|agent.skill|retriev|embed|vector|prompt"),
-        ("coding",       r"code|coding|program|test|debug|refactor|review|\bgit\b|javascript|python|typescript|lint|build|script|macro|recorder|cli"),
+        ("productivity", r"productivity|planning|task|calendar|workflow|project|todo|notion"),
+        ("ai",           r"\bai\b|llm|rag|knowledge.base|mcp|agent.skill|retriev|embed|vector|prompt|openai|anthropic|gemini"),
+        ("coding",       r"code|coding|program|test|debug|refactor|review|\bgit\b|javascript|python|typescript|lint|build|script|macro|recorder|cli|terminal|shell|npx|pip"),
     ]
     import re
     for cat_id, pattern in rules:
@@ -270,3 +293,95 @@ class AdminUserDetail(MethodView):
         db.session.delete(user)
         db.session.commit()
         return ""
+# ── MCP 管理端點 ───────────────────────────────────────────────────
+from app.models import MCPServer
+from app.schemas import (
+    MCPSchema, MCPQuerySchema, MCPListResponseSchema, MCPUpdateSchema
+)
+
+@admin_blp.route("/mcps")
+class AdminMCPs(MethodView):
+    @admin_blp.arguments(MCPQuerySchema, location="query")
+    @admin_blp.response(200, MCPListResponseSchema)
+    @require_permission("admin:access")
+    def get(self, args):
+        """[管理員] 列出所有 MCP Servers"""
+        q = args.get("q", "").strip()
+        sort = args.get("sort", "created_at")
+        page = args.get("page", 1)
+        per_page = args.get("per_page", 50)
+
+        query = MCPServer.query
+
+        if q:
+            query = query.filter(
+                db.or_(
+                    MCPServer.name.ilike(f"%{q}%"),
+                    MCPServer.display_name.ilike(f"%{q}%"),
+                    MCPServer.description.ilike(f"%{q}%")
+                )
+            )
+
+        query = query.order_by(MCPServer.created_at.desc())
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        return {
+            "mcps": paginated.items,
+            "total": paginated.total,
+            "page": paginated.page,
+            "pages": paginated.pages,
+            "per_page": per_page,
+        }
+
+@admin_blp.route("/mcps/<string:name>")
+class AdminMCPDetail(MethodView):
+    @admin_blp.response(200, MCPSchema)
+    @require_permission("admin:access")
+    def get(self, name):
+        """[管理員] 取得 MCP 詳情"""
+        server = MCPServer.query.filter_by(name=name).first_or_404()
+        return server
+
+    @admin_blp.arguments(MCPUpdateSchema)
+    @admin_blp.response(200, MCPSchema)
+    @require_permission("admin:access")
+    def patch(self, data, name):
+        """[管理員] 修改 MCP 控制元數據"""
+        server = MCPServer.query.filter_by(name=name).first_or_404()
+        for key, value in data.items():
+            if value is not None:
+                setattr(server, key, value)
+        db.session.commit()
+        return server
+
+    @admin_blp.response(204)
+    @require_permission("admin:access")
+    def delete(self, name):
+        """[管理員] 永久刪除 MCP Server"""
+        server = MCPServer.query.filter_by(name=name).first_or_404()
+        db.session.delete(server)
+        db.session.commit()
+        return ""
+
+@admin_blp.route("/mcps/classify-all")
+class AdminMCPsClassifyAll(MethodView):
+    @admin_blp.response(200, ClassifyAllResponseSchema)
+    @require_permission("admin:access")
+    def post(self):
+        """[管理員] AI 批次自動分類所有 MCP Servers"""
+        servers = MCPServer.query.all()
+        classified = 0
+        skipped = 0
+        details = []
+
+        for s in servers:
+            cat = auto_classify(s)
+            if cat:
+                s.category = cat
+                classified += 1
+                details.append({"name": s.name, "category": cat})
+            else:
+                skipped += 1
+
+        db.session.commit()
+        return {"classified": classified, "skipped": skipped, "details": details}

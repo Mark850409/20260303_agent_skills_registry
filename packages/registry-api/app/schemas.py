@@ -117,3 +117,88 @@ class UserUpdateSchema(Schema):
     email = fields.String()
     role = fields.String()
     permissions = fields.List(fields.String())
+
+
+# ── MCP Server Schemas ─────────────────────────────────────────────
+
+class MCPToolSchema(Schema):
+    name        = fields.String()
+    description = fields.String()
+
+
+class MCPLocalConfigItemSchema(Schema):
+    type    = fields.String()          # docker | python | node
+    command = fields.String()          # 完整執行指令
+    image   = fields.String()          # docker image（docker 專用）
+    package = fields.String()          # npm/pip package（node/python 專用）
+    env     = fields.List(fields.String())  # 需要的環境變數名稱
+
+
+class MCPSchema(Schema):
+    id             = fields.Integer(dump_only=True)
+    name           = fields.String(required=True)
+    display_name   = fields.String(required=True)
+    description    = fields.String(required=True)
+    author         = fields.String(required=True)
+    license        = fields.String(dump_default="MIT")
+    repository     = fields.String()
+    endpoint_url   = fields.String(allow_none=True, load_default=None)
+    transport      = fields.String(dump_default="sse")
+    category       = fields.String(allow_none=True)
+    tags           = fields.List(fields.String(), dump_default=list)
+    tools          = fields.List(fields.Nested(MCPToolSchema), dump_default=list)
+    local_config   = fields.List(fields.Nested(MCPLocalConfigItemSchema), dump_default=list)
+    installs       = fields.Integer(dump_only=True)
+    is_verified    = fields.Boolean(dump_default=False)
+    latest_version = fields.String(dump_only=True)
+    owner_id       = fields.Integer(dump_only=True)
+    created_at     = fields.String(dump_only=True)
+    updated_at     = fields.String(dump_only=True)
+
+
+class MCPQuerySchema(Schema):
+    q          = fields.String(load_default="")
+    category   = fields.String(load_default="")
+    tags       = fields.String(load_default="")
+    transport  = fields.String(load_default="")
+    sort       = fields.String(load_default="installs")
+    page       = fields.Integer(load_default=1)
+    per_page   = fields.Integer(load_default=20)
+
+
+class MCPListResponseSchema(Schema):
+    mcps     = fields.List(fields.Nested(MCPSchema))
+    total    = fields.Integer()
+    page     = fields.Integer()
+    pages    = fields.Integer()
+    per_page = fields.Integer()
+
+
+class MCPPublishSchema(Schema):
+    name          = fields.String(required=True)
+    display_name  = fields.String(required=True)
+    description   = fields.String(required=True)
+    author        = fields.String(required=True)
+    license       = fields.String(load_default="MIT")
+    repository    = fields.String()
+    endpoint_url  = fields.String(allow_none=True, load_default=None)
+    transport     = fields.String(load_default="sse")
+    category      = fields.String(allow_none=True, load_default=None)
+    tags          = fields.List(fields.String(), load_default=list)
+    tools         = fields.List(fields.Dict(), load_default=list)
+    local_config  = fields.List(fields.Dict(), load_default=list)
+    latest_version = fields.String(load_default="1.0.0")
+
+
+class MCPUpdateSchema(Schema):
+    display_name  = fields.String()
+    description   = fields.String()
+    author        = fields.String()
+    license       = fields.String()
+    repository    = fields.String()
+    endpoint_url  = fields.String(allow_none=True, load_default=None)
+    transport     = fields.String()
+    category      = fields.String(allow_none=True)
+    tags          = fields.List(fields.String())
+    tools         = fields.List(fields.Dict())
+    local_config  = fields.List(fields.Dict())

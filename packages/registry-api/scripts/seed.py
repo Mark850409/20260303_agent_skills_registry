@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app import create_app, db
-from app.models import Skill, SkillVersion, User
+from app.models import Skill, SkillVersion, User, MCPServer
 from datetime import datetime, timezone
 
 SEED_SKILLS = [
@@ -191,6 +191,128 @@ Automatically generate comprehensive unit and integration tests.
     },
 ]
 
+SEED_MCPS = [
+    {
+        "name":         "exa-search",
+        "display_name": "Exa Search",
+        "description":  "Fast, intelligent web search using Exa AI. Supports neural search and auto-summarization.",
+        "author":       "exa-ai",
+        "repository":   "https://github.com/exa-labs/exa-mcp-server",
+        "endpoint_url": "",
+        "transport":    "sse",
+        "category":     "web_search",
+        "tags":         ["search", "web", "exa"],
+        "tools": [
+            {"name": "web_search", "description": "Search the web with neural search"},
+            {"name": "get_contents", "description": "Retrieve page contents by URL"},
+        ],
+        "local_config": [
+            {"type": "node", "package": "@exa-ai/exa-mcp-server",
+             "command": "npx -y @exa-ai/exa-mcp-server", "env": ["EXA_API_KEY"]},
+        ],
+    },
+    {
+        "name":         "playwright-mcp",
+        "display_name": "Playwright Browser",
+        "description":  "Control a real browser via Playwright. Supports click, fill, screenshot, navigate.",
+        "author":       "microsoft",
+        "repository":   "https://github.com/microsoft/playwright-mcp",
+        "endpoint_url": "",
+        "transport":    "stdio",
+        "category":     "browser",
+        "tags":         ["browser", "playwright", "automation"],
+        "tools": [
+            {"name": "browser_navigate", "description": "Navigate to a URL"},
+            {"name": "browser_click", "description": "Click an element"},
+            {"name": "browser_screenshot", "description": "Take a screenshot"},
+        ],
+        "local_config": [
+            {"type": "node", "package": "@playwright/mcp",
+             "command": "npx -y @playwright/mcp", "env": []},
+        ],
+    },
+    {
+        "name":         "sqlite-mcp",
+        "display_name": "SQLite MCP",
+        "description":  "Query and manage SQLite databases using natural language via MCP.",
+        "author":       "anthropics",
+        "repository":   "https://github.com/anthropics/mcp-servers",
+        "endpoint_url": "",
+        "transport":    "stdio",
+        "category":     "database",
+        "tags":         ["sqlite", "database", "sql"],
+        "tools": [
+            {"name": "query", "description": "Execute a SQL query"},
+            {"name": "list_tables", "description": "List all tables"},
+        ],
+        "local_config": [
+            {"type": "python", "package": "mcp-server-sqlite",
+             "command": "pip install mcp-server-sqlite && python -m mcp_server_sqlite",
+             "env": ["DB_PATH"]},
+        ],
+    },
+    {
+        "name":         "github-mcp",
+        "display_name": "GitHub",
+        "description":  "Access GitHub repositories, issues, pull requests, and code search.",
+        "author":       "github",
+        "repository":   "https://github.com/github/mcp-servers",
+        "endpoint_url": "",
+        "transport":    "stdio",
+        "category":     "coding",
+        "tags":         ["github", "git", "code", "pr"],
+        "tools": [
+            {"name": "search_repositories", "description": "Search GitHub repositories"},
+            {"name": "get_file_contents", "description": "Read file from a repo"},
+            {"name": "create_issue", "description": "Create a GitHub issue"},
+        ],
+        "local_config": [
+            {"type": "node", "package": "@github/mcp-server",
+             "command": "npx -y @github/mcp-server", "env": ["GITHUB_TOKEN"]},
+        ],
+    },
+    {
+        "name":         "slack-mcp",
+        "display_name": "Slack",
+        "description":  "Send messages, search channels, and manage Slack workspace via MCP.",
+        "author":       "slack",
+        "repository":   "https://github.com/slack-labs/slack-mcp",
+        "endpoint_url": "",
+        "transport":    "sse",
+        "category":     "communication",
+        "tags":         ["slack", "messaging", "productivity"],
+        "tools": [
+            {"name": "send_message", "description": "Send a Slack message"},
+            {"name": "search_messages", "description": "Search Slack messages"},
+        ],
+        "local_config": [
+            {"type": "node", "package": "@slack/mcp-server",
+             "command": "npx -y @slack/mcp-server", "env": ["SLACK_BOT_TOKEN"]},
+        ],
+    },
+    {
+        "name":         "docker-mcp",
+        "display_name": "Docker",
+        "description":  "Manage Docker containers, images, volumes and networks via MCP.",
+        "author":       "dockerdev",
+        "repository":   "https://github.com/docker/mcp-server",
+        "endpoint_url": "",
+        "transport":    "stdio",
+        "category":     "cloud",
+        "tags":         ["docker", "container", "devops"],
+        "tools": [
+            {"name": "list_containers", "description": "List running containers"},
+            {"name": "run_container", "description": "Run a Docker container"},
+            {"name": "build_image", "description": "Build a Docker image"},
+        ],
+        "local_config": [
+            {"type": "docker", "image": "docker/mcp-server:latest",
+             "command": "docker run -v /var/run/docker.sock:/var/run/docker.sock docker/mcp-server:latest",
+             "env": []},
+        ],
+    },
+]
+
 
 import hashlib
 
@@ -235,9 +357,15 @@ def seed():
                 role="admin", 
                 permissions=["*:*"]
             )
-            admin.api_token_hash = _hash_token("admin-token-123")
             db.session.add(admin)
             print("[OK] Created Admin user: admin")
+        else:
+            # 確保 role/permissions 正確
+            admin.role = "admin"
+            admin.permissions = ["*:*"]
+            print("[OK] Updated Admin user: admin")
+        # 永遠保持與 .env AGENTSKILLS_TOKEN 一致的固定 token（開發用）
+        admin.api_token_hash = _hash_token("admin-token-123")
         
         # 2. 建立一個維護者用戶
         maintainer = User.query.filter_by(username="maintainer").first()
@@ -285,7 +413,34 @@ def seed():
             print(f"[OK] Seeded: {data['name']}@{data['version']}")
 
         db.session.commit()
+
+        # 4. Seed MCP Servers
+        for data in SEED_MCPS:
+            existing = MCPServer.query.filter_by(name=data["name"]).first()
+            if existing:
+                print(f"[SKIP] MCP {data['name']} already exists")
+                continue
+            mcp = MCPServer(
+                name          = data["name"],
+                display_name  = data["display_name"],
+                description   = data["description"],
+                author        = data["author"],
+                repository    = data.get("repository"),
+                endpoint_url  = data.get("endpoint_url"),
+                transport     = data.get("transport", "sse"),
+                category      = data.get("category"),
+                tags          = data.get("tags", []),
+                tools         = data.get("tools", []),
+                local_config  = data.get("local_config", []),
+                installs      = 0,
+                owner_id      = admin.id,
+            )
+            db.session.add(mcp)
+            print(f"[OK] Seeded MCP: {data['name']}")
+
+        db.session.commit()
         print("\nSeed complete!")
+
 
 
 if __name__ == "__main__":

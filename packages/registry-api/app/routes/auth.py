@@ -16,11 +16,21 @@ def _hash_token(token: str) -> str:
 
 def get_current_user():
     auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    if not auth_header:
+        # print("DEBUG: Missing Authorization header")
         return None
-    raw_token = auth_header.removeprefix("Bearer ").strip()
+    if not auth_header.startswith("Bearer "):
+        # print(f"DEBUG: Invalid header format: {auth_header[:10]}...")
+        return None
+    
+    # 相容性考量：使用切片而非 removeprefix
+    raw_token = auth_header[7:].strip()
     token_hash = _hash_token(raw_token)
-    return User.query.filter_by(api_token_hash=token_hash).first()
+    user = User.query.filter_by(api_token_hash=token_hash).first()
+    if not user:
+        # print("DEBUG: No user found for token hash")
+        pass
+    return user
 
 
 def require_permission(perm):
@@ -30,15 +40,17 @@ def require_permission(perm):
         def wrapper(*args, **kwargs):
             user = get_current_user()
             if not user:
+                # 這裡要確保 get_current_user 失敗時拋出正確錯誤
                 abort(401, message="Authentication required")
             
             # Admin role bypasses all checks
             if user.role == "admin":
                 return f(*args, **kwargs)
             
-            # 為了向下相容：如果非 admin 用戶的權限欄位是空的，視為具有基本發布能力
+            # 獲取權限清單
             user_perms = user.permissions or []
-            if not user_perms and user.role != "admin":
+            # 如果是維護者且沒設定權限，預設給予基本權限
+            if not user_perms and user.role == "maintainer":
                 user_perms = ["skill:create", "skill:update"]
 
             # Check for specific permission bit
@@ -80,7 +92,15 @@ class AuthLogin(MethodView):
                 user.permissions = ["skill:create", "skill:update"]
 
         # Generate opaque API token
+        import os
         raw_token = secrets.token_urlsafe(32)
+        
+        # 優先使用環境變數中的 Token (開發模式：確保與 CLI .env 一致)
+        if username == "admin":
+            env_token = os.environ.get("AGENTSKILLS_TOKEN")
+            if env_token:
+                raw_token = env_token
+
         user.api_token_hash = _hash_token(raw_token)
         db.session.commit()
 

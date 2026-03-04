@@ -130,3 +130,68 @@ class User(db.Model):
 
     def __repr__(self):
         return f"<User {self.username}>"
+
+
+class MCPServer(db.Model):
+    """A published MCP (Model Context Protocol) Server."""
+
+    __tablename__ = "mcp_servers"
+
+    id               = db.Column(db.Integer, primary_key=True)
+    name             = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    display_name     = db.Column(db.String(200), nullable=False)
+    description      = db.Column(db.Text, nullable=False)
+    author           = db.Column(db.String(100), nullable=False)
+    repository       = db.Column(db.String(500))
+    # SSE / remote 連線 URL（Remote 類型使用）
+    endpoint_url     = db.Column(db.String(500))
+    # sse | stdio | http
+    transport        = db.Column(db.String(20), default="sse")
+    category         = db.Column(db.String(50), nullable=True, index=True)
+    tags             = db.Column(db.JSON, default=list)
+    # 提供的工具 [{name, description}]
+    tools            = db.Column(db.JSON, default=list)
+    # 本地啟動設定 [{type, command, image/package, env:[]}]
+    local_config     = db.Column(db.JSON, default=list)
+    installs         = db.Column(db.Integer, default=0)
+    is_verified      = db.Column(db.Boolean, default=False)
+    latest_version   = db.Column(db.String(20), default="1.0.0")
+    license          = db.Column(db.String(50), default="MIT")
+    owner_id         = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at       = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at       = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    def to_dict(self, detail=False):
+        def fmt(dt):
+            if dt is None: return None
+            return dt.isoformat() if hasattr(dt, "isoformat") else str(dt)
+
+        data = {
+            "id":             self.id,
+            "name":           self.name,
+            "display_name":   self.display_name,
+            "description":    self.description,
+            "author":         self.author,
+            "repository":     self.repository,
+            "endpoint_url":   self.endpoint_url,
+            "transport":      self.transport,
+            "category":       self.category,
+            "tags":           self.tags or [],
+            "tools":          self.tools or [],
+            "local_config":   self.local_config or [],
+            "installs":       self.installs,
+            "is_verified":    self.is_verified,
+            "latest_version": self.latest_version,
+            "license":        self.license,
+            "owner_id":       self.owner_id,
+            "created_at":     fmt(self.created_at),
+            "updated_at":     fmt(self.updated_at),
+        }
+        return data
+
+    def __repr__(self):
+        return f"<MCPServer {self.name}>"
