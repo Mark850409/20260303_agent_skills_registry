@@ -25,6 +25,7 @@ from agentskills.commands.search import search_cmd
 from agentskills.commands.vendor import vendor_cmd
 from agentskills.commands.login import login_cmd
 from agentskills.commands.logout import logout as logout_cmd
+from agentskills.commands.mcp import mcp_group
 
 cli.add_command(init_cmd, "init")
 cli.add_command(pull_cmd, "pull")
@@ -33,6 +34,7 @@ cli.add_command(search_cmd, "search")
 cli.add_command(vendor_cmd, "vendor")
 cli.add_command(login_cmd, "login")
 cli.add_command(logout_cmd, "logout")
+cli.add_command(mcp_group, "mcp")
 
 if __name__ == "__main__":
     cli()

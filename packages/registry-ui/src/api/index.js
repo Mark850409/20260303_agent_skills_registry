@@ -62,4 +62,43 @@ export const authApi = {
     }
 }
 
+export const mcpApi = {
+    /** 搜尋 / 列出 MCP Servers */
+    list(params = {}) {
+        return api.get('/mcps', { params })
+    },
+    /** MCP 詳情 */
+    get(name) {
+        return api.get(`/mcps/${name}`)
+    },
+    /** 取得連線資訊（含 claude config） */
+    connect(name) {
+        return api.get(`/mcps/${name}/connect`)
+    },
+    /** 熱門標籤 */
+    tags() {
+        return api.get('/mcps/tags')
+    },
+    /** 統計 */
+    stats() {
+        return api.get('/mcps/stats')
+    },
+    /** 分類清單 */
+    categories() {
+        return api.get('/mcps/categories')
+    },
+    /** 發布新 MCP */
+    publish(payload) {
+        return api.post('/mcps', payload)
+    },
+    /** 更新 MCP */
+    update(name, payload) {
+        return api.patch(`/mcps/${name}`, payload)
+    },
+    /** SSE proxy URL（前端組，永遠對應瀏覽器 origin） */
+    sseUrl(name) {
+        return `${window.location.origin}/api/mcps/${name}/sse`
+    },
+}
+
 export default api

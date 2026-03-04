@@ -20,6 +20,18 @@ const routes = [
         meta: { title: 'Skill 詳情' }
     },
     {
+        path: '/mcp',
+        name: 'McpBrowse',
+        component: () => import('@/views/McpBrowseView.vue'),
+        meta: { title: 'MCP Servers — AgentSkills Registry' }
+    },
+    {
+        path: '/mcp/:name',
+        name: 'McpDetail',
+        component: () => import('@/views/McpDetailView.vue'),
+        meta: { title: 'MCP Server 詳情' }
+    },
+    {
         path: '/admin',
         name: 'Admin',
         component: () => import('@/views/AdminDashboard.vue'),

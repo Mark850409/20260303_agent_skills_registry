@@ -102,6 +102,41 @@
       </div>
     </section>
 
+    <!-- ── Featured MCP Servers ── -->
+    <section class="section mcp-featured-section">
+      <div class="section-inner">
+        <div class="section-header">
+          <h2 class="section-title">🔌 精選 MCP Servers</h2>
+          <RouterLink to="/mcp" class="view-all mcp-view-all">全部 →</RouterLink>
+        </div>
+
+        <div v-if="mcpLoading" class="mcp-grid">
+          <div v-for="i in 4" :key="i" class="mcp-skeleton">
+            <div class="skeleton" style="height:40px;width:40px;border-radius:10px;" />
+            <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+              <div class="skeleton" style="height:16px;width:55%;" />
+              <div class="skeleton" style="height:12px;width:35%;" />
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="featuredMcps.length === 0" class="mcp-empty">
+          <span class="mcp-empty-icon">🔌</span>
+          <span>尚未發布任何 MCP Server</span>
+        </div>
+
+        <div v-else class="mcp-grid">
+          <McpCard
+            v-for="(mcp, i) in featuredMcps"
+            :key="mcp.name"
+            :mcp="mcp"
+            :style="{ animationDelay: `${i * 60}ms` }"
+            class="fade-up"
+          />
+        </div>
+      </div>
+    </section>
+
     <!-- ── Agents Support ── -->
     <section class="section agents-section">
       <div class="section-inner">
@@ -157,11 +192,15 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSkillsStore } from '@/stores/skills'
+import { mcpApi } from '@/api'
 import SkillCard from '@/components/SkillCard.vue'
+import McpCard from '@/components/McpCard.vue'
 
 const router = useRouter()
 const store = useSkillsStore()
 const query = ref('')
+const featuredMcps = ref([])
+const mcpLoading = ref(true)
 
 const AGENTS = [
   { name: 'Antigravity',    id: 'antigravity',    dir: '~/.gemini/antigravity/skills/' },
@@ -192,6 +231,11 @@ onMounted(() => {
   store.fetchSkills({ sort: 'downloads' })
   store.fetchTags()
   store.fetchStats()
+  // 載入精選 MCP
+  mcpApi.list({ sort: 'installs', per_page: 4 })
+    .then(res => { featuredMcps.value = res.data?.mcps || res.data?.items || [] })
+    .catch(() => {})
+    .finally(() => { mcpLoading.value = false })
 })
 </script>
 
@@ -334,6 +378,34 @@ onMounted(() => {
   gap: 0.75rem;
   align-items: flex-start;
 }
+
+/* MCP Featured */
+.mcp-featured-section { padding-top: 0; }
+.mcp-view-all { color: #f97316; }
+.mcp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+.mcp-skeleton {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+.mcp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 3rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.mcp-empty-icon { font-size: 2rem; }
 
 /* Agents table */
 .agents-section { background: var(--bg-secondary); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }

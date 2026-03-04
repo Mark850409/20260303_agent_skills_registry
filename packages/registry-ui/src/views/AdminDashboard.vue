@@ -19,6 +19,7 @@
 
     <div class="tabs-nav">
       <button :class="{ active: currentTab === 'skills' }" @click="currentTab = 'skills'">技能管理</button>
+      <button :class="{ active: currentTab === 'mcps' }" @click="currentTab = 'mcps'">MCP 管理</button>
       <button :class="{ active: currentTab === 'users' }" @click="currentTab = 'users'">使用者管理</button>
     </div>
 
@@ -75,11 +76,28 @@
         </div>
       </div>
 
-      <!-- 列表視圖 -->
+      <!-- 批次操作 bar (Skills) -->
+      <div v-if="selectedSkills.size > 0" class="batch-bar">
+        <span class="batch-info">已選取 <strong>{{ selectedSkills.size }}</strong> 筆</span>
+        <button class="btn-select-all" @click="toggleSelectAllSkills">
+          {{ selectedSkills.size === skills.length ? '取消全選' : '全選' }}
+        </button>
+        <button class="btn-batch-delete" @click="batchDeleteSkills" :disabled="batchDeleting">
+          {{ batchDeleting ? '刪除中…' : '🗑 删除選取項目' }}
+        </button>
+        <button class="btn-batch-cancel" @click="clearSelectedSkills">取消選取</button>
+      </div>
       <div v-if="skillViewMode === 'list'" class="table-container">
         <table class="admin-table">
           <thead>
             <tr>
+              <th class="cb-col">
+                <input type="checkbox" class="batch-cb"
+                  :checked="skills.length > 0 && selectedSkills.size === skills.length"
+                  :indeterminate.prop="selectedSkills.size > 0 && selectedSkills.size < skills.length"
+                  @change="toggleSelectAllSkills"
+                />
+              </th>
               <th>技能名稱</th>
               <th>作者</th>
               <th>分類</th>
@@ -90,7 +108,13 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="skill in skills" :key="skill.id">
+            <tr v-for="skill in skills" :key="skill.id" :class="{ 'row-selected': selectedSkills.has(skill.name) }">
+              <td class="cb-col">
+                <input type="checkbox" class="batch-cb"
+                  :checked="selectedSkills.has(skill.name)"
+                  @change="toggleSkillSelect(skill.name)"
+                />
+              </td>
               <td class="skill-name-cell">
                 <span class="skill-name">{{ skill.name }}</span>
               </td>
@@ -121,7 +145,7 @@
               </td>
             </tr>
             <tr v-if="skills.length === 0" class="empty-row">
-              <td colspan="7">尚無任何技能數據</td>
+              <td colspan="8">尚無任何技能數據</td>
             </tr>
           </tbody>
         </table>
@@ -173,6 +197,178 @@
           第 {{ skillPagination.page }} / {{ skillPagination.pages }} 頁 (共 {{ skillPagination.total }} 筆，每頁 {{ skillPerPage }} 筆)
         </span>
         <button :disabled="skillPagination.page === skillPagination.pages" @click="fetchData(skillPagination.page + 1)">下一頁</button>
+      </div>
+    </div>
+
+    <div v-if="currentTab === 'mcps'" class="admin-content card">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="icon">🔍</span>
+          <input v-model="mcpSearchQuery" placeholder="搜尋 MCP 名稱..." @input="debouncedFetchMcps" />
+        </div>
+        <div class="toolbar-right">
+          <!-- MCP 每頁筆數 -->
+          <div class="per-page-wrap">
+            <span class="per-page-label">每頁</span>
+            <select class="per-page-select" v-model="mcpPerPage" @change="fetchMcps(1)">
+              <option :value="5">5 筆</option>
+              <option :value="10">10 筆</option>
+              <option :value="20">20 筆</option>
+              <option :value="50">50 筆</option>
+            </select>
+          </div>
+          <!-- MCP 視圖切換 -->
+          <div class="view-toggle">
+            <button
+              class="view-btn"
+              :class="{ active: mcpViewMode === 'list' }"
+              @click="mcpViewMode = 'list'"
+              title="列表視圖"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="1" y="2" width="14" height="2" rx="1"/>
+                <rect x="1" y="7" width="14" height="2" rx="1"/>
+                <rect x="1" y="12" width="14" height="2" rx="1"/>
+              </svg>
+            </button>
+            <button
+              class="view-btn"
+              :class="{ active: mcpViewMode === 'grid' }"
+              @click="mcpViewMode = 'grid'"
+              title="卡片視圖"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="1" y="1" width="6" height="6" rx="1"/>
+                <rect x="9" y="1" width="6" height="6" rx="1"/>
+                <rect x="1" y="9" width="6" height="6" rx="1"/>
+                <rect x="9" y="9" width="6" height="6" rx="1"/>
+              </svg>
+            </button>
+          </div>
+          <button class="btn-ai-classify" @click="classifyAllMcps" :disabled="classifyingMcps">
+            {{ classifyingMcps ? '⏳ 分類中...' : '🤖 AI 自動分類全部 MCP' }}
+          </button>
+          <button class="btn-ghost" @click="fetchMcps(1)">刷新數據</button>
+        </div>
+      </div>
+
+      <!-- 批次操作 bar (MCP) -->
+      <div v-if="selectedMcps.size > 0" class="batch-bar mcp-batch-bar">
+        <span class="batch-info">已選取 <strong>{{ selectedMcps.size }}</strong> 筆</span>
+        <button class="btn-select-all" @click="toggleSelectAllMcps">
+          {{ selectedMcps.size === mcps.length ? '取消全選' : '全選' }}
+        </button>
+        <button class="btn-batch-delete" @click="batchDeleteMcps" :disabled="batchDeletingMcp">
+          {{ batchDeletingMcp ? '刪除中…' : '🗑 删除選取項目' }}
+        </button>
+        <button class="btn-batch-cancel" @click="clearSelectedMcps">取消選取</button>
+      </div>
+
+      <!-- MCP 列表視圖 -->
+      <div v-if="mcpViewMode === 'list'" class="table-container">
+        <table class="admin-table text-xs">
+          <thead>
+            <tr>
+              <th class="cb-col">
+                <input type="checkbox" class="batch-cb"
+                  :checked="mcps.length > 0 && selectedMcps.size === mcps.length"
+                  :indeterminate="selectedMcps.size > 0 && selectedMcps.size < mcps.length"
+                  @change="toggleSelectAllMcps"
+                />
+              </th>
+              <th>MCP 名稱</th>
+              <th>傳輸</th>
+              <th>分類</th>
+              <th>作者</th>
+              <th>連線數</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="mcp in mcps" :key="mcp.id" :class="{ 'row-selected': selectedMcps.has(mcp.name) }">
+              <td class="cb-col">
+                <input type="checkbox" class="batch-cb"
+                  :checked="selectedMcps.has(mcp.name)"
+                  @change="toggleMcpSelect(mcp.name)"
+                />
+              </td>
+              <td>
+                <div class="font-bold text-white">{{ mcp.display_name }}</div>
+                <div class="text-[10px] text-muted">{{ mcp.name }}</div>
+              </td>
+              <td>
+                <span :class="['transport-badge', mcp.transport]">{{ mcp.transport }}</span>
+              </td>
+              <td class="category-cell">
+                <select
+                  class="category-select"
+                  :value="mcp.category || ''"
+                  @change="setMcpCategory(mcp, $event.target.value)"
+                >
+                  <option value="">— 未分類 —</option>
+                  <option v-for="cat in MCP_CATEGORIES" :key="cat.id" :value="cat.id">
+                    {{ cat.icon }} {{ cat.label }}
+                  </option>
+                </select>
+              </td>
+              <td>{{ mcp.author }}</td>
+              <td>{{ mcp.installs || 0 }}</td>
+              <td class="actions">
+                <button class="btn-action edit" @click="editMcp(mcp)">編輯</button>
+                <button class="btn-action delete" @click="confirmDeleteMcp(mcp)">刪除</button>
+              </td>
+            </tr>
+            <tr v-if="mcps.length === 0" class="empty-row">
+              <td colspan="7">尚無任何 MCP 數據</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- MCP 卡片視圖 -->
+      <div v-else class="skill-cards-grid">
+        <div v-if="mcps.length === 0" class="cards-empty">尚無任何 MCP 數據</div>
+        <div v-for="mcp in mcps" :key="mcp.id" class="skill-card-admin">
+          <div class="card-head">
+            <div class="card-icon">🔌</div>
+            <div class="card-meta">
+              <div class="card-name">{{ mcp.display_name }}</div>
+              <div class="card-author">@{{ mcp.author }}</div>
+            </div>
+            <span :class="['transport-badge', mcp.transport]">{{ mcp.transport }}</span>
+          </div>
+          <div class="card-category">
+            <select
+              class="category-select"
+              :value="mcp.category || ''"
+              @change="setMcpCategory(mcp, $event.target.value)"
+            >
+              <option value="">— 未分類 —</option>
+              <option v-for="cat in MCP_CATEGORIES" :key="cat.id" :value="cat.id">
+                {{ cat.icon }} {{ cat.label }}
+              </option>
+            </select>
+          </div>
+          <p class="card-stats">
+            ID: <code>{{ mcp.name }}</code>
+          </p>
+          <div class="card-stats">
+            <span class="card-stat">🔗 {{ mcp.installs || 0 }} 次連線</span>
+          </div>
+          <div class="card-actions">
+            <button class="btn-action edit" @click="editMcp(mcp)">編輯</button>
+            <button class="btn-action delete" @click="confirmDeleteMcp(mcp)">刪除</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MCP 分頁 -->
+      <div class="pagination" v-if="mcpPagination.pages >= 1">
+        <button :disabled="mcpPagination.page === 1" @click="fetchMcps(mcpPagination.page - 1)">上一頁</button>
+        <span class="page-info">
+          第 {{ mcpPagination.page }} / {{ mcpPagination.pages }} 頁 (共 {{ mcpPagination.total }} 筆，每頁 {{ mcpPerPage }} 筆)
+        </span>
+        <button :disabled="mcpPagination.page === mcpPagination.pages" @click="fetchMcps(mcpPagination.page + 1)">下一頁</button>
       </div>
     </div>
 
@@ -340,6 +536,35 @@ const CATEGORIES = [
   { id: 'devops',        label: 'DevOps',     icon: '🛠️' },
 ]
 
+const MCP_CATEGORIES = [
+  { id: 'coding',        icon: '💻', label: 'Dev Tools & Coding' },
+  { id: 'web',           icon: '🌐', label: 'Web 瀏覽' },
+  { id: 'search',        icon: '🔍', label: '網路搜尋' },
+  { id: 'data',          icon: '📊', label: 'Data & Analytics' },
+  { id: 'database',      icon: '🗄️', label: 'Database & SQL' },
+  { id: 'ai',            icon: '🤖', label: 'AI 智能' },
+  { id: 'productivity',  icon: '⚡', label: 'Productivity' },
+  { id: 'writing',       icon: '✍️', label: '文案文件' },
+  { id: 'design',        icon: '🎨', label: '設計創作' },
+  { id: 'devops',        icon: '🛠️', label: '運維部署' },
+  { id: 'communication', icon: '💬', label: '通訊聯絡' },
+  { id: 'maps',          icon: '📍', label: 'Maps & Geodata' },
+  { id: 'finance',       icon: '💰', label: 'Finance & Crypto' },
+  { id: 'science',       icon: '🧪', label: 'Science & Math' },
+  { id: 'travel',        icon: '✈️',  label: 'Travel & Lifestyle' },
+  { id: 'health',        icon: '🏥', label: 'Health & Fitness' },
+  { id: 'other',         icon: '📦', label: '其他' },
+]
+
+const mcpViewMode = ref('list')
+const mcpPerPage = ref(10)
+
+const mcps = ref([])
+const mcpSearchQuery = ref('')
+const mcpPagination = reactive({ page: 1, total: 0, pages: 1 })
+const classifyingMcps = ref(false)
+const editingMcp = ref(null)
+
 const classifyingAll = ref(false)
 
 const editingSkill = ref(null)
@@ -436,8 +661,65 @@ async function setSkillCategory(skill, categoryId) {
 }
 
 
+async function fetchMcps(page = 1) {
+  mcpPagination.page = page
+  try {
+    const res = await fetch(`/api/admin/mcps?q=${mcpSearchQuery.value}&page=${page}&per_page=${mcpPerPage.value}`, {
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    const data = await res.json()
+    mcps.value = data.mcps || []
+    mcpPagination.total = data.total
+    mcpPagination.pages = data.pages
+  } catch (e) {
+    console.error('fetchMcps error', e)
+  }
+}
+
+async function classifyAllMcps() {
+  if (!confirm('將由 AI 自動分類所有 MCP Server，確定執行？')) return
+  classifyingMcps.value = true
+  try {
+    const res = await fetch('/api/admin/mcps/classify-all', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    const data = await res.json()
+    alert(`✅ 完成！已自動分類 ${data.classified} 個 MCP Server`)
+    await fetchMcps(1)
+  } finally {
+    classifyingMcps.value = false
+  }
+}
+
+async function setMcpCategory(mcp, catId) {
+  const old = mcp.category
+  mcp.category = catId || null
+  try {
+    const res = await fetch(`/api/admin/mcps/${mcp.name}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ category: catId || null })
+    })
+    if (!res.ok) throw new Error()
+  } catch {
+    mcp.category = old
+    alert('更新失敗')
+  }
+}
+
+let mcpTimeout = null
+function debouncedFetchMcps() {
+  clearTimeout(mcpTimeout)
+  mcpTimeout = setTimeout(() => fetchMcps(1), 300)
+}
+
 watch(currentTab, (newTab) => {
   if (newTab === 'users') fetchUsers()
+  else if (newTab === 'mcps') fetchMcps()
   else fetchData()
 })
 
@@ -500,6 +782,27 @@ async function confirmDelete(skill) {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (res.ok) fetchData(skillPagination.page)
+  } catch (e) {
+    alert('刪除失敗')
+  }
+}
+
+// MCP 操作
+function editMcp(mcp) {
+  editingMcp.value = mcp
+  // 這裡複用編輯 Modal。注意：MCP 與 Skill 欄位名稱不同（display_name vs name），Modal 需要稍後做條件渲染
+  editingSkill.value = null 
+  editSkill(mcp) 
+}
+
+async function confirmDeleteMcp(mcp) {
+  if (!confirm(`確定要永久刪除 MCP Server "${mcp.display_name}" 嗎？`)) return
+  try {
+    const res = await fetch(`/api/admin/mcps/${mcp.name}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) fetchMcps(mcpPagination.page)
   } catch (e) {
     alert('刪除失敗')
   }
@@ -570,6 +873,85 @@ async function deleteUser(user) {
     if (res.ok) fetchUsers(userPagination.page)
   } catch (e) {
     alert('刪除失敗')
+  }
+}
+
+// ── 批次刪除 ──────────────────────────────────────────────────────
+const selectedSkills = ref(new Set())
+const selectedMcps = ref(new Set())
+const batchDeleting = ref(false)
+const batchDeletingMcp = ref(false)
+
+function clearSelectedSkills() { selectedSkills.value = new Set() }
+function clearSelectedMcps() { selectedMcps.value = new Set() }
+
+function toggleSkillSelect(name) {
+  const s = new Set(selectedSkills.value)
+  s.has(name) ? s.delete(name) : s.add(name)
+  selectedSkills.value = s
+}
+
+function toggleSelectAllSkills() {
+  if (selectedSkills.value.size === skills.value.length) {
+    selectedSkills.value = new Set()
+  } else {
+    selectedSkills.value = new Set(skills.value.map(s => s.name))
+  }
+}
+
+async function batchDeleteSkills() {
+  const names = [...selectedSkills.value]
+  if (!names.length) return
+  if (!confirm(`確定要永久刪除選取的 ${names.length} 筆技能嗎？此操作不可復原！`)) return
+  batchDeleting.value = true
+  try {
+    await Promise.all(names.map(name =>
+      fetch(`/api/admin/skills/${name}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${authStore.token}` }
+      })
+    ))
+    selectedSkills.value = new Set()
+    await fetchData(skillPagination.page)
+  } catch (e) {
+    alert('部分刪除失敗，請重新整理')
+  } finally {
+    batchDeleting.value = false
+  }
+}
+
+function toggleMcpSelect(name) {
+  const s = new Set(selectedMcps.value)
+  s.has(name) ? s.delete(name) : s.add(name)
+  selectedMcps.value = s
+}
+
+function toggleSelectAllMcps() {
+  if (selectedMcps.value.size === mcps.value.length) {
+    selectedMcps.value = new Set()
+  } else {
+    selectedMcps.value = new Set(mcps.value.map(m => m.name))
+  }
+}
+
+async function batchDeleteMcps() {
+  const names = [...selectedMcps.value]
+  if (!names.length) return
+  if (!confirm(`確定要永久刪除選取的 ${names.length} 筆 MCP Server 嗎？此操作不可復原！`)) return
+  batchDeletingMcp.value = true
+  try {
+    await Promise.all(names.map(name =>
+      fetch(`/api/admin/mcps/${name}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${authStore.token}` }
+      })
+    ))
+    selectedMcps.value = new Set()
+    await fetchMcps(mcpPagination.page)
+  } catch (e) {
+    alert('部分刪除失敗，請重新整理')
+  } finally {
+    batchDeletingMcp.value = false
   }
 }
 
@@ -778,6 +1160,63 @@ textarea.form-input { resize: vertical; min-height: 100px; }
 .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
 .page-info { font-size: 0.85rem; color: var(--text-muted); }
 
-.toolbar-actions { display: flex; gap: 0.8rem; }
+.transport-badge { font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; }
+.transport-badge.sse { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+.transport-badge.stdio { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+.text-muted { color: var(--text-muted); }
+.text-xs { font-size: 0.75rem; }
+
+/* ── 批次刪除 ── */
+.cb-col { width: 36px; text-align: center; padding: 0 6px !important; }
+.batch-cb {
+  width: 16px; height: 16px; cursor: pointer;
+  accent-color: var(--accent);
+}
+.row-selected { background: rgba(34, 197, 94, 0.05) !important; }
+.row-selected td { color: var(--text-primary); }
+
+.batch-bar {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  margin-bottom: 0.75rem;
+  animation: batchBarIn 0.2s ease;
+}
+.mcp-batch-bar { border-color: rgba(249, 115, 22, 0.35); }
+@keyframes batchBarIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.batch-info { font-size: 0.85rem; color: var(--text-secondary); flex: 1; }
+.batch-info strong { color: var(--accent); }
+.mcp-batch-bar .batch-info strong { color: #f97316; }
+
+.btn-select-all {
+  padding: 4px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  background: rgba(34, 197, 94, 0.1); color: var(--accent);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  transition: background 0.15s;
+}
+.btn-select-all:hover { background: rgba(34, 197, 94, 0.2); }
+
+.btn-batch-delete {
+  padding: 4px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  background: rgba(239, 68, 68, 0.15); color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  transition: background 0.15s;
+}
+.btn-batch-delete:hover:not(:disabled) { background: #ef4444; color: #fff; }
+.btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-batch-cancel {
+  padding: 4px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  background: transparent; color: var(--text-muted);
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+.btn-batch-cancel:hover { color: var(--text-primary); border-color: var(--text-muted); }
 </style>
 

@@ -40,6 +40,10 @@ pip install agentskills
 | `agentskills vendor <name>[@version]` | 將 Skill 鎖定到本地 vendor 目錄 |
 | `agentskills vendor` | 從 lock file 還原所有 vendored Skills |
 | `agentskills vendor --remove <name>` | 移除已 vendor 的 Skill |
+| `agentskills mcp publish` | 互動式發布 MCP Server |
+| `agentskills mcp list` | 列出已發布的 MCP Servers |
+| `agentskills mcp run <name>` | 本地執行 MCP Server (Stdio) |
+| `agentskills mcp connect <name>` | 獲取 MCP 連線配置 |
 
 ### 從 Git 安裝
 
@@ -135,8 +139,34 @@ agentskills pull web-search --agent cursor
 
 1. **瀏覽與搜尋**: 支援關鍵字搜尋、標籤篩選與熱門度（下載數）排序。
 2. **技能詳情**: 提供 Markdown 渲染的指令預覽、版本歷史、作者資訊與一鍵複製安裝指令。
-3. **發布介面**: 支援透過網頁端直接上傳 YAML 規格進行發布（開發中）。
-4. **Agent 自動偵測**: 指導使用者如何將技能配置到不同的 AI Agents 中。
+3. **發布介面**: 支援 Skill (CLI/GitHub/表單) 與 MCP Server (SSE/Stdio) 的發布。
+4. **管理後台**: 管理員可針對所有技能與 MCP 進行分類、編輯或刪除，支援 AI 自動分類。
+5. **Agent 自動偵測**: 指導使用者如何將技能與 MCP 配置到不同的 AI Agents 中。
+
+---
+
+## 🔌 Model Context Protocol (MCP)
+
+本平台全面支援 MCP 生態，讓您集中管理所有的工具。
+
+### 發布 MCP
+您可以使用 CLI 的互動指令進行發布，系統會自動在本地嘗試連線並「強制驗證」工具清單：
+```bash
+agentskills mcp publish
+```
+或是在 Web 介面的「發布」頁面切換到 MCP 分頁進行填寫。
+
+### 連線 MCP
+對於 SSE 類型，Registry 會自動處理 proxy，您只需獲取連線網址即可。對於 Stdio 類型，CLI 提供配置片段：
+```bash
+# 獲取適用於 Claude Desktop 的配置
+agentskills mcp connect google-maps --agent claude
+```
+
+### 本地執行 (Debugging)
+```bash
+agentskills mcp run playwright-mcp
+```
 
 ---
 

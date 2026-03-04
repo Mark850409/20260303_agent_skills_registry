@@ -113,13 +113,22 @@ const selectedCategory = ref(route.query.category || 'all')
 const CATEGORIES = [
   { id: 'all',          icon: '🧩', label: '全部' },
   { id: 'coding',       icon: '💻', label: '程式開發' },
-  { id: 'web',          icon: '🌐', label: 'Web / UI' },
+  { id: 'web',          icon: '🌐', label: 'Web 瀏覽' },
+  { id: 'search',       icon: '🔍', label: '網路搜尋' },
   { id: 'data',         icon: '📊', label: '資料分析' },
-  { id: 'writing',      icon: '✍️',  label: '文案 / 文件' },
-  { id: 'ai',           icon: '🤖', label: 'AI / Agent' },
-  { id: 'design',       icon: '🎨', label: '設計 / 創作' },
+  { id: 'database',     icon: '🗄️', label: '資料庫' },
+  { id: 'ai',           icon: '🤖', label: 'AI 智能' },
   { id: 'productivity', icon: '⚡', label: '效率工具' },
-  { id: 'devops',       icon: '🛠️', label: 'DevOps' },
+  { id: 'writing',      icon: '✍️',  label: '文案文件' },
+  { id: 'design',       icon: '🎨', label: '設計創作' },
+  { id: 'devops',       icon: '🛠️', label: '運維部署' },
+  { id: 'communication',icon: '💬', label: '通訊聯絡' },
+  { id: 'maps',         icon: '📍', label: '地圖數據' },
+  { id: 'finance',      icon: '💰', label: '金融科技' },
+  { id: 'science',      icon: '🧪', label: '科學計算' },
+  { id: 'travel',       icon: '✈️',  label: '旅遊生活' },
+  { id: 'health',       icon: '🏥', label: '健康醫療' },
+  { id: 'other',        icon: '📦', label: '其他' },
 ]
 
 // 從 skills store 的快取計算各分類數量

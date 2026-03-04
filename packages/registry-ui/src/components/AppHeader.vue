@@ -9,7 +9,10 @@
 
       <nav class="nav-links">
         <RouterLink to="/skills" class="nav-link" :class="{ active: $route.path.startsWith('/skills') }">
-          瀏覽
+          Skills
+        </RouterLink>
+        <RouterLink to="/mcp" class="nav-link mcp-link" :class="{ active: $route.path.startsWith('/mcp') }">
+          <span class="mcp-dot"></span>MCP
         </RouterLink>
         <RouterLink v-if="authStore.hasPermission('skill:create')" to="/publish" class="nav-link" :class="{ active: $route.path === '/publish' }">
           發布
@@ -35,24 +38,66 @@
           </RouterLink>
         </template>
         
-        <RouterLink v-if="authStore.hasPermission('skill:create')" to="/publish" class="btn-primary" style="font-size:0.85rem;padding:0.45rem 1rem;">
-          ＋ 發布 Skill
-        </RouterLink>
+        <div v-if="authStore.hasPermission('skill:create')" class="publish-dropdown" v-click-outside="closeDropdown">
+          <button class="btn-primary publish-btn" @click="toggleDropdown">
+            ＋ 發佈 <span class="dropdown-arrow" :class="{ open: dropdownOpen }">▾</span>
+          </button>
+          <div v-if="dropdownOpen" class="publish-menu">
+            <RouterLink to="/publish?type=skill" class="publish-menu-item" @click="closeDropdown">
+              <span class="menu-icon">🧩</span>
+              <div class="menu-text">
+                <strong>Agent Skill</strong>
+                <span>AI 操作指令與腳本</span>
+              </div>
+            </RouterLink>
+            <RouterLink to="/publish?type=mcp" class="publish-menu-item" @click="closeDropdown">
+              <span class="menu-icon">🔌</span>
+              <div class="menu-text">
+                <strong>MCP Server</strong>
+                <span>Model Context Protocol</span>
+              </div>
+            </RouterLink>
+          </div>
+        </div>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
+const dropdownOpen = ref(false)
+
+function toggleDropdown() {
+  dropdownOpen.value = !dropdownOpen.value
+}
+
+function closeDropdown() {
+  dropdownOpen.value = false
+}
+
 function handleLogout() {
   authStore.logout()
   router.push('/')
+}
+
+// Click outside directive
+const vClickOutside = {
+  mounted(el, binding) {
+    el._clickOutsideHandler = (e) => {
+      if (!el.contains(e.target)) binding.value()
+    }
+    document.addEventListener('click', el._clickOutsideHandler)
+  },
+  unmounted(el) {
+    document.removeEventListener('click', el._clickOutsideHandler)
+  }
 }
 </script>
 
@@ -68,6 +113,62 @@ function handleLogout() {
   gap: 0.8rem;
   font-size: 0.85rem;
 }
+
+/* 發佈下拉選單 */
+.publish-dropdown {
+  position: relative;
+}
+.publish-btn {
+  font-size: 0.85rem;
+  padding: 0.45rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.dropdown-arrow {
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+.dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+.publish-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 210px;
+  background: var(--bg-secondary, #161b22);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  overflow: hidden;
+  z-index: 999;
+  animation: menuFadeIn 0.15s ease;
+}
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.publish-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.publish-menu-item:last-child { border-bottom: none; }
+.publish-menu-item:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
+}
+.menu-icon { font-size: 1.4rem; flex-shrink: 0; }
+.menu-text { display: flex; flex-direction: column; }
+.menu-text strong { font-size: 0.88rem; color: var(--text-primary); font-weight: 600; }
+.menu-text span { font-size: 0.74rem; color: var(--text-muted); margin-top: 1px; }
 .username {
   color: var(--text-primary);
   font-weight: 600;
@@ -146,4 +247,8 @@ function handleLogout() {
   color: var(--text-primary);
   background: rgba(255,255,255,0.06);
 }
+.mcp-link { display: flex; align-items: center; gap: 5px; }
+.mcp-link .mcp-dot { width: 6px; height: 6px; border-radius: 50%; background: #f97316; opacity: 0.7; }
+.mcp-link:hover, .mcp-link.active { color: #f97316; background: rgba(249,115,22,0.08); }
+.mcp-link.active .mcp-dot { opacity: 1; }
 </style>

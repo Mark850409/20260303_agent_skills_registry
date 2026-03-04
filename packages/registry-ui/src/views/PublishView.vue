@@ -1,19 +1,45 @@
 <template>
   <div class="publish-page">
     <div class="publish-inner">
-      <h1 class="page-title">🚀 發布 Skill</h1>
-      <p class="page-sub">將你的 Agent Skill 分享給社群</p>
+      <h1 class="page-title">🚀 發布內容</h1>
+      <p class="page-sub">將你的貢獻分享給社群</p>
+
+      <!-- Type switcher -->
+      <div class="type-switcher card mb-6">
+        <button 
+          class="switch-btn" 
+          :class="{ active: publishType === 'skill' }" 
+          @click="publishType = 'skill'; step = 0"
+        >
+          <span class="icon">🧩</span>
+          <div class="btn-text">
+            <strong>Agent Skill</strong>
+            <span>AI 操作指令與腳本</span>
+          </div>
+        </button>
+        <button 
+          class="switch-btn" 
+          :class="{ active: publishType === 'mcp' }" 
+          @click="publishType = 'mcp'; step = 0"
+        >
+          <span class="icon">🔌</span>
+          <div class="btn-text">
+            <strong>MCP Server</strong>
+            <span>Model Context Protocol</span>
+          </div>
+        </button>
+      </div>
 
       <!-- Step tabs -->
       <div class="steps">
-        <div v-for="(s, i) in STEPS" :key="s.id" class="step" :class="{ active: step === i, done: step > i }">
+        <div v-for="(s, i) in currentSteps" :key="s.id" class="step" :class="{ active: step === i, done: step > i }">
           <div class="step-num">{{ step > i ? '✓' : i + 1 }}</div>
           <span>{{ s.label }}</span>
         </div>
       </div>
 
       <!-- Step 0: Bundle Structure -->
-      <div v-if="step === 0" class="step-content card fade-up">
+      <div v-if="publishType === 'skill' && step === 0" class="step-content card fade-up">
         <h2>1. 準備 Skill Bundle 結構</h2>
         <p class="step-desc">請確保您的 Skill 資料夾符合以下標準目錄結構：</p>
         <div class="structure-box">
@@ -46,8 +72,34 @@ license: "MIT"
         </div>
       </div>
 
-      <!-- Step 1: CLI Push -->
-      <div v-if="step === 1" class="step-content card fade-up">
+      <!-- Step 0: MCP Introduction -->
+      <div v-if="publishType === 'mcp' && step === 0" class="step-content card fade-up">
+        <h2>1. 什麼是 MCP Server？</h2>
+        <p class="step-desc">
+          Model Context Protocol (MCP) 是一個開放標準，讓 AI 模型能安全地存取本地或遠端的工具、內容與數據。
+          發布到 Registry 後，其他開發者可以直接連線並使用您的工具。
+        </p>
+        
+        <div class="mcp-intro-grid">
+          <div class="mcp-intro-card">
+            <div class="mcp-intro-icon">🌐</div>
+            <h3>Remote SSE</h3>
+            <p>將 MCP Server 託管在雲端，透過 HTTP/SSE 提供服務。適合公開工具、資料庫查詢等。</p>
+          </div>
+          <div class="mcp-intro-card">
+            <div class="mcp-intro-icon">💻</div>
+            <h3>Local Stdio</h3>
+            <p>透過本地標準輸入輸出與 Agent 通訊。適合本地檔案處理、瀏覽器自動化等工具。</p>
+          </div>
+        </div>
+
+        <div class="step-actions">
+          <button class="btn-primary" @click="step = 1">開始填裝 MCP 資訊 →</button>
+        </div>
+      </div>
+
+      <!-- Step 1: CLI Push (Skill) -->
+      <div v-if="publishType === 'skill' && step === 1" class="step-content card fade-up">
         <h2>使用 CLI 發布</h2>
         <p class="step-desc">透過 agentskills CLI 打包並推送到 Registry：</p>
         <div class="cli-steps">
@@ -71,8 +123,132 @@ license: "MIT"
         </div>
       </div>
 
+      <!-- Step 1: MCP Form (Combined) -->
+      <div v-if="publishType === 'mcp' && step === 1" class="step-content card fade-up">
+        <h2>填寫 MCP Server 資訊</h2>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>顯示名稱 <span class="required">*</span></label>
+            <input v-model="mcpForm.display_name" class="form-input" placeholder="例如: Playwright MCP" />
+          </div>
+          <div class="form-row">
+            <label>唯一 ID (名稱) <span class="required">*</span></label>
+            <input v-model="mcpForm.name" class="form-input" placeholder="例如: playwright-mcp (小寫、連字符)" />
+          </div>
+          <div class="form-row full">
+            <label>描述 <span class="required">*</span></label>
+            <input v-model="mcpForm.description" class="form-input" placeholder="簡短描述功能" />
+          </div>
+          <div class="form-row">
+            <label>傳輸方式</label>
+            <select v-model="mcpForm.transport" class="form-input form-select">
+              <option value="sse">Remote SSE</option>
+              <option value="stdio">Local Stdio</option>
+            </select>
+          </div>
+          <div v-if="mcpForm.transport === 'sse'" class="form-row">
+            <label>Endpoint URL <span class="required">*</span></label>
+            <input v-model="mcpForm.endpoint_url" class="form-input" placeholder="https://..." />
+          </div>
+          
+          <!-- Stdio Local Config -->
+          <template v-if="mcpForm.transport === 'stdio'">
+            <div class="form-row full mcp-local-config">
+              <label>本地啟動設定</label>
+              <div class="config-tabs">
+                <button v-for="t in ['node', 'python', 'docker']" :key="t" 
+                        class="config-tab" :class="{ active: mcpLocalConfig.type === t }"
+                        @click="mcpLocalConfig.type = t">
+                  {{ t.toUpperCase() }}
+                </button>
+              </div>
+              <div class="config-fields">
+                <div v-if="mcpLocalConfig.type !== 'docker'" class="form-row mb-2">
+                  <label>{{ mcpLocalConfig.type === 'node' ? 'NPM Package' : 'Python Package' }} <span class="required">*</span></label>
+                  <input v-model="mcpLocalConfig.package" class="form-input" :placeholder="mcpLocalConfig.type === 'node' ? '@modelcontextprotocol/server-everything' : 'mcp-server-everything'" />
+                </div>
+                <div v-if="mcpLocalConfig.type === 'docker'" class="form-row mb-2">
+                  <label>Docker Image <span class="required">*</span></label>
+                  <input v-model="mcpLocalConfig.image" class="form-input" placeholder="user/mcp-server:latest" />
+                </div>
+                <div class="form-row">
+                  <label>啟動指令 <span class="required">*</span></label>
+                  <input v-model="mcpLocalConfig.command" class="form-input" :placeholder="mcpLocalConfig.type === 'node' ? 'npx' : (mcpLocalConfig.type === 'python' ? 'python' : 'docker run')" />
+                </div>
+                
+                <!-- Environment Variables -->
+                <div class="form-row full mcp-env-section">
+                  <div class="env-header">
+                    <label>環境變數 (Environment Variables)</label>
+                    <button class="btn-add-env" @click="addMcpEnv">+ 新增</button>
+                  </div>
+                  <div class="env-list">
+                    <div v-for="(env, idx) in mcpLocalConfig.envs" :key="idx" class="env-item">
+                      <input v-model="env.key" class="form-input" placeholder="KEY ( e.g. API_KEY )" />
+                      <input v-model="env.value" class="form-input" placeholder="VALUE ( 可留空 )" />
+                      <button class="btn-remove-env" @click="removeMcpEnv(idx)">×</button>
+                    </div>
+                    <div v-if="mcpLocalConfig.envs.length === 0" class="env-empty">
+                      尚未新增環境變數，點擊「+ 新增」新增一筆
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div class="form-row">
+            <label>分類</label>
+            <div class="field-with-ai">
+              <select v-model="mcpForm.category" class="form-input form-select">
+                <option value="">— 未分類 —</option>
+                <option v-for="cat in MCP_CATEGORIES" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ cat.label }}</option>
+              </select>
+              <button class="btn-ai-gen" :disabled="aiClassifyingMcp" @click="aiClassifyMcp" title="AI 自動判斷分類">
+                {{ aiClassifyingMcp ? '⏳' : '🤖 AI' }}
+              </button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>作者 <span class="required">*</span></label>
+            <input v-model="mcpForm.author" class="form-input" placeholder="your-name" />
+          </div>
+
+          <!-- 標籤欄位 (MCP) -->
+          <div class="form-row full">
+            <label>標籤（逗號分隔）</label>
+            <div class="field-with-ai">
+              <input v-model="mcpForm.tagsRaw" class="form-input" placeholder="search, maps, automation" />
+              <button class="btn-ai-gen" :disabled="aiTaggingMcp" @click="aiGenerateTagsMcp" title="AI 自動生成標籤">
+                {{ aiTaggingMcp ? '⏳' : '🤖 AI' }}
+              </button>
+            </div>
+            <div class="tag-chips" v-if="availableTags.length">
+              <span class="chips-label">現有標籤：</span>
+              <span
+                v-for="t in availableTags.slice(0, 15)"
+                :key="t.tag"
+                class="tag-chip"
+                :class="{ active: mcpTagsSet.has(t.tag) }"
+                @click="toggleMcpTag(t.tag)"
+              >{{ t.tag }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="submitError" class="error-msg">{{ submitError }}</div>
+        <div v-if="submitOk" class="success-msg">🎉 MCP Server 發布成功！</div>
+
+        <div class="step-actions">
+          <button class="btn-ghost" @click="step = 0">← 上一步</button>
+          <button class="btn-primary" :disabled="submitting" @click="submitMcp">
+            {{ submitting ? (submittingMessage || '發布中…') : '🚀 發布' }}
+          </button>
+        </div>
+      </div>
+
       <!-- Step 2: GitHub Import -->
-      <div v-if="step === 2" class="step-content card fade-up">
+      <div v-if="publishType === 'skill' && step === 2" class="step-content card fade-up">
         <div class="github-import-header">
           <div class="github-import-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
@@ -182,8 +358,8 @@ license: "MIT"
         </div>
       </div>
 
-      <!-- Step 3: Web Form Push -->
-      <div v-if="step === 3" class="step-content card fade-up">
+      <!-- Step 3: Web Form Push (Skill) -->
+      <div v-if="publishType === 'skill' && step === 3" class="step-content card fade-up">
         <h2>表單發布</h2>
         <p class="step-desc">填寫技能資訊並貼上 SKILL.md 內容：</p>
 
@@ -259,7 +435,7 @@ license: "MIT"
         <div class="step-actions">
           <button class="btn-ghost" @click="step = 1">← 上一步</button>
           <button class="btn-primary" :disabled="submitting" @click="submitForm">
-            {{ submitting ? '發布中…' : '🚀 發布' }}
+            {{ submitting ? (submittingMessage || '發布中…') : '🚀 發布' }}
           </button>
         </div>
       </div>
@@ -268,36 +444,64 @@ license: "MIT"
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { skillsApi } from '@/api'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { skillsApi, mcpApi } from '@/api'
 
+const route = useRoute()
+const publishType = ref('skill') // 'skill' | 'mcp'
 const step = ref(0)
 const submitting = ref(false)
+const submittingMessage = ref('')
 const submitError = ref('')
 const submitOk = ref(false)
 
-const STEPS = [
+const SKILL_STEPS = [
   { id: 'structure', label: 'Bundle 結構' },
   { id: 'cli',       label: 'CLI 發布' },
   { id: 'github',    label: 'GitHub 匯入' },
   { id: 'form',      label: '表單發布' },
 ]
 
+const MCP_STEPS = [
+  { id: 'intro', label: 'MCP 介紹' },
+  { id: 'form',  label: '發布表單' },
+]
+
+const currentSteps = computed(() => publishType.value === 'skill' ? SKILL_STEPS : MCP_STEPS)
+
 // ── 分類定義（與後端同步）──
 const CATEGORIES = [
-  { id: 'coding',       icon: '💻', label: '程式開發' },
-  { id: 'web',          icon: '🌐', label: 'Web / UI' },
-  { id: 'data',         icon: '📊', label: '資料分析' },
-  { id: 'writing',      icon: '✍️',  label: '文案 / 文件' },
-  { id: 'ai',           icon: '🤖', label: 'AI / Agent' },
-  { id: 'design',       icon: '🎨', label: '設計 / 創作' },
-  { id: 'productivity', icon: '⚡', label: '效率工具' },
-  { id: 'devops',       icon: '🛠️', label: 'DevOps' },
+  { id: 'coding',        icon: '💻', label: '程式開發' },
+  { id: 'web',           icon: '', label: 'Web 瀏覽' },
+  { id: 'search',        icon: '🔍', label: '網路搜尋' },
+  { id: 'data',          icon: '📊', label: '資料分析' },
+  { id: 'database',      icon: '🗄️', label: '資料庫' },
+  { id: 'ai',            icon: '🤖', label: 'AI 智能' },
+  { id: 'productivity',  icon: '⚡', label: '效率工具' },
+  { id: 'writing',       icon: '✍️', label: '文案文件' },
+  { id: 'design',        icon: '🎨', label: '設計創作' },
+  { id: 'devops',        icon: '🛠️', label: '運維部署' },
+  { id: 'communication', icon: '💬', label: '通訊聯絡' },
+  { id: 'maps',          icon: '📍', label: '地圖數據' },
+  { id: 'finance',       icon: '💰', label: '金融科技' },
+  { id: 'science',       icon: '🧪', label: '科學計算' },
+  { id: 'travel',        icon: '✈️',  label: '旅遊生活' },
+  { id: 'health',        icon: '🏥', label: '健康醫療' },
+  { id: 'other',         icon: '📦', label: '其他' },
 ]
+
+const MCP_CATEGORIES = CATEGORIES
 
 // ── 現有標籤（從後端載入）──
 const availableTags = ref([])
 onMounted(async () => {
+  // 讀取 URL query 參數 type
+  if (route.query.type === 'mcp') {
+    publishType.value = 'mcp'
+  } else if (route.query.type === 'skill') {
+    publishType.value = 'skill'
+  }
   try {
     const res = await skillsApi.tags()
     availableTags.value = res.data || []
@@ -370,6 +574,7 @@ async function submitForm() {
     return
   }
   submitting.value = true
+  submittingMessage.value = '正在發布技能資訊…'
   try {
     await skillsApi.push({
       name: form.name.trim(),
@@ -385,6 +590,144 @@ async function submitForm() {
     Object.assign(form, { name:'', version:'1.0.0', description:'', author:'', license:'MIT', tagsRaw:'', skill_md:'', category:'' })
   } catch (e) {
     submitError.value = e.response?.data?.error || '發布失敗，請稍後再試'
+  } finally {
+    submitting.value = false
+  }
+}
+
+// ── MCP 發布 ──
+const aiTaggingMcp = ref(false)
+const aiClassifyingMcp = ref(false)
+
+const mcpForm = reactive({
+  name: '', 
+  display_name: '', 
+  description: '', 
+  author: '',
+  transport: 'sse', 
+  endpoint_url: '', 
+  category: '',
+  tagsRaw: ''
+})
+
+const mcpTagsSet = computed(() => {
+  return new Set(mcpForm.tagsRaw.split(',').map(t => t.trim()).filter(Boolean))
+})
+
+const toggleMcpTag = (tag) => {
+  const tags = mcpForm.tagsRaw.split(',').map(t => t.trim()).filter(Boolean)
+  const idx = tags.indexOf(tag)
+  if (idx > -1) {
+    tags.splice(idx, 1)
+  } else {
+    tags.push(tag)
+  }
+  mcpForm.tagsRaw = tags.join(', ')
+}
+
+
+async function aiGenerateTagsMcp() {
+  if (!mcpForm.display_name && !mcpForm.description) {
+    alert('請先填寫名稱或描述')
+    return
+  }
+  aiTaggingMcp.value = true
+  try {
+    const tags = clientSideGenerateTags({
+      name: mcpForm.display_name, description: mcpForm.description
+    })
+    mcpForm.tagsRaw = tags.join(', ')
+  } finally { aiTaggingMcp.value = false }
+}
+
+async function aiClassifyMcp() {
+  if (!mcpForm.display_name && !mcpForm.description) {
+    alert('請先填寫名稱或描述')
+    return
+  }
+  aiClassifyingMcp.value = true
+  try {
+    const cat = clientSideClassify({
+      name: mcpForm.display_name, description: mcpForm.description,
+      tags: mcpForm.tagsRaw.split(',').map(t => t.trim())
+    })
+    mcpForm.category = cat || ''
+  } finally { aiClassifyingMcp.value = false }
+}
+
+const mcpLocalConfig = reactive({
+  type: 'node', 
+  command: 'npx', 
+  package: '', 
+  image: '', 
+  envs: []
+})
+
+function addMcpEnv() {
+  mcpLocalConfig.envs.push({ key: '', value: '' })
+}
+
+function removeMcpEnv(idx) {
+  mcpLocalConfig.envs.splice(idx, 1)
+}
+
+// 監聽本地配置類型切換，自動填入預設指令
+watch(() => mcpLocalConfig.type, (newType) => {
+  if (newType === 'node') {
+    if (!mcpLocalConfig.command || mcpLocalConfig.command === 'python' || mcpLocalConfig.command === 'docker run') mcpLocalConfig.command = 'npx'
+  } else if (newType === 'python') {
+    if (!mcpLocalConfig.command || mcpLocalConfig.command === 'npx' || mcpLocalConfig.command === 'docker run') mcpLocalConfig.command = 'python'
+  } else if (newType === 'docker') {
+    if (!mcpLocalConfig.command || mcpLocalConfig.command === 'npx' || mcpLocalConfig.command === 'python') mcpLocalConfig.command = 'docker run'
+  }
+})
+
+async function submitMcp() {
+  submitError.value = ''
+  submitOk.value = false
+  
+  // 基礎驗證
+  if (!mcpForm.name || !mcpForm.display_name || !mcpForm.description || !mcpForm.author) {
+    submitError.value = '請填寫必填基本資訊'
+    return
+  }
+  if (mcpForm.transport === 'sse' && !mcpForm.endpoint_url) {
+    submitError.value = 'SSE 模式必須提供 Endpoint URL'
+    return
+  }
+
+  submitting.value = true
+  submittingMessage.value = '正在發布並自動偵測工具清單 (Introspection)...'
+  try {
+    // 封裝 Local Config (如果 transport 是 stdio)
+    // 排除 tagsRaw 以避免後端 Unknown field 錯誤
+    const { tagsRaw, ...formData } = mcpForm
+    const payload = {
+      ...formData,
+      tags: tagsRaw.split(',').map(t => t.trim()).filter(Boolean),
+      local_config: mcpForm.transport === 'stdio' ? [{
+        type: mcpLocalConfig.type,
+        command: mcpLocalConfig.command,
+        package: mcpLocalConfig.package,
+        image: mcpLocalConfig.image,
+        env: mcpLocalConfig.envs.map(e => e.key).filter(Boolean),
+        env_values: mcpLocalConfig.envs.reduce((acc, e) => {
+          if (e.key && e.value) acc[e.key] = e.value
+          return acc
+        }, {})
+      }] : []
+    }
+    
+    await mcpApi.publish(payload)
+    submitOk.value = true
+    
+    // 成功後延遲跳转到管理後台
+    setTimeout(() => {
+      location.href = '/admin' // 或者使用 router.push('/admin')
+    }, 2500)
+    
+  } catch (e) {
+    submitError.value = e.response?.data?.error || '發布失敗'
   } finally {
     submitting.value = false
   }
@@ -495,14 +838,22 @@ function clientSideGenerateTags({ name = '', description = '', skill_md = '' }) 
 function clientSideClassify({ name = '', description = '', tags = [], skill_md = '' }) {
   const text = [name, description, skill_md, ...tags].join(' ').toLowerCase()
   const rules = [
-    ['devops',       /devops|docker|deploy|kubernetes|cloud|infra|ci.?cd/],
-    ['data',         /\bdata\b|analytics|excel|xlsx|csv|sql|spreadsheet/],
-    ['writing',      /\bdoc\b|docs|markdown|writing|report|pdf|word|docx|pptx|slide|readme/],
-    ['web',          /web|html|css|frontend|browser|ui\b|ux\b|playwright|webapp|artifact/],
-    ['design',       /design|art\b|image|graphic|generative|algorithmic|poster|brand|theme|gif/],
-    ['productivity', /product|slack|email|meeting|planning|internal.comm/],
-    ['ai',           /\bai\b|llm|rag|knowledge.base|mcp|vector|embed|prompt/],
-    ['coding',       /code|coding|program|test|debug|refactor|review|\bgit\b|javascript|python|typescript|script|macro/],
+    ['devops',       /devops|docker|deploy|kubernetes|k8s|cloud|infra|ci.cd|pipeline/],
+    ['data',         /data|analytics|excel|xlsx|csv|spreadsheet|chart|etl|bi/],
+    ['database',     /database|sql|mysql|postgres|sqlite|query|storage|mongodb|redis|prisma/],
+    ['maps',         /map|geo|location|address|gps|place|route|navigation|earth/],
+    ['finance',      /finance|crypto|stock|trading|wallet|payment|billing|stripe|bank|tax/],
+    ['communication',/slack|email|mail|discord|telegram|message|notification|chat|twilio/],
+    ['science',      /science|math|calculation|physics|chem|biology|research|statist/],
+    ['travel',       /travel|flight|hotel|booking|restaurant|food|weather|lifestyle/],
+    ['health',       /health|fitness|medical|doctor|hospital|workout|nutrition/],
+    ['writing',      /\bdoc\b|docs|documentation|writing|report|blog|markdown|pdf|word|docx|pptx|slide|coauthor|letter/],
+    ['search',       /search|exa\b|google|bing|tavily|duckduckgo|web.search/],
+    ['web',          /web|html|css|frontend|browser\b|ui |ux |playwright|webapp|artifact|react|vue|tailwind/],
+    ['design',       /design|art\b|image|graphic|illustrat|generative|algorithmic|poster|brand|theme|visual|gif|p5\.js/],
+    ['productivity', /productivity|planning|task|calendar|workflow|project|todo|notion/],
+    ['ai',           /\bai\b|llm|rag|knowledge.base|mcp|agent.skill|retriev|embed|vector|prompt|openai|anthropic|gemini/],
+    ['coding',       /code|coding|program|test|debug|refactor|review|\bgit\b|javascript|python|typescript|lint|build|script|macro|recorder|cli|terminal|shell|npx|pip/],
   ]
   for (const [id, re] of rules) {
     if (re.test(text)) return id
@@ -594,6 +945,8 @@ async function submitGithubImport() {
   const { name, version, description, author, skill_md, license, tagsRaw, repository, category } = githubForm
   if (!name || !version || !description || !author || !skill_md) { githubSubmitError.value = '請填寫所有必填欄位'; return }
   githubSubmitting.value = true
+  submitting.value = true
+  submittingMessage.value = '正在從 GitHub 匯入並發布…'
   try {
     await skillsApi.push({
       name: name.trim(), version: version.trim(), description: description.trim(),
@@ -615,8 +968,20 @@ async function submitGithubImport() {
 
 <style scoped>
 .publish-page { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.5rem; }
-.page-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 700; margin-bottom: 0.25rem; }
+.page-title { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 800; margin-bottom: 0.25rem; letter-spacing: -0.02em; }
 .page-sub { color: var(--text-muted); margin-bottom: 2rem; }
+
+/* Type switcher */
+.type-switcher { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 0.75rem; border-radius: 14px; margin-bottom: 2.5rem; background: var(--bg-secondary); }
+.switch-btn { 
+  display: flex; align-items: center; gap: 1rem; padding: 1.25rem; border-radius: 10px; border: 1px solid transparent; background: transparent; cursor: pointer; text-align: left; transition: all 0.2s;
+}
+.switch-btn:hover { background: var(--bg-primary); }
+.switch-btn.active { background: var(--bg-primary); border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+.switch-btn .icon { font-size: 1.8rem; }
+.switch-btn .btn-text { display: flex; flex-direction: column; }
+.switch-btn .btn-text strong { display: block; font-size: 1.05rem; color: #fff; margin-bottom: 0.2rem; }
+.switch-btn .btn-text span { font-size: 0.8rem; color: var(--text-muted); }
 
 /* Steps nav */
 .steps { display: flex; gap: 0; margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -745,4 +1110,58 @@ async function submitGithubImport() {
 .skillmd-preview { margin: 0; padding: 1rem; background: var(--bg-primary); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; line-height: 1.6; max-height: 250px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: var(--text-secondary); }
 .btn-outline { padding: 0.55rem 1.1rem; border-radius: 8px; font-size: 0.88rem; font-weight: 600; background: transparent; color: var(--accent); border: 1px solid rgba(37,164,100,0.45); cursor: pointer; transition: all 0.15s; }
 .btn-outline:hover { background: var(--accent-dim); }
+
+/* MCP Intro */
+.mcp-intro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin: 1.5rem 0; }
+.mcp-intro-card {
+  padding: 1.5rem; border-radius: 12px; background: var(--bg-primary); 
+  border: 1px solid var(--border); transition: all 0.2s;
+}
+.mcp-intro-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.mcp-intro-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+.mcp-intro-card h3 { margin: 0 0 0.5rem; color: #fff; font-size: 1.1rem; }
+.mcp-intro-card p { margin: 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+
+/* Local Config */
+.mcp-local-config { background: var(--bg-primary); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border); margin: 0.5rem 0; }
+.config-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+.config-tab { padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-muted); font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+.config-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.config-fields { display: flex; flex-direction: column; gap: 0.8rem; border-top: 1px solid var(--border-subtle); padding-top: 1rem; }
+
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+
+/* Env Variables */
+.mcp-env-section {
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+.env-empty {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+}
+.env-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.env-header label { margin-bottom: 0; }
+.btn-add-env {
+  padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700;
+  background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(37,164,100,0.3);
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-add-env:hover { background: var(--accent); color: #000; }
+.env-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.env-item { display: flex; gap: 0.5rem; align-items: center; }
+.env-item .form-input { flex: 1; font-size: 0.78rem; padding: 0.4rem 0.6rem; }
+.btn-remove-env {
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary);
+  color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+}
+.btn-remove-env:hover { border-color: #e05252; color: #e05252; }
 </style>
