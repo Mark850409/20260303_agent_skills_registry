@@ -14,6 +14,7 @@ class Skill(db.Model):
     license = db.Column(db.String(50), default="MIT")
     repository = db.Column(db.String(500))
     tags = db.Column(db.JSON, default=list)
+    category = db.Column(db.String(50), nullable=True, index=True)  # 技能分類
     downloads = db.Column(db.Integer, default=0)
     latest_version = db.Column(db.String(20), default="1.0.0")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -42,6 +43,7 @@ class Skill(db.Model):
             "license": self.license,
             "repository": self.repository,
             "tags": self.tags or [],
+            "category": self.category,
             "downloads": self.downloads,
             "latest_version": self.latest_version,
             "created_at": format_date(self.created_at),

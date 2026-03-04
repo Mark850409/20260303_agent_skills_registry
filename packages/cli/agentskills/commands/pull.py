@@ -70,13 +70,14 @@ def install_from_git(url: str, target_dir: Path, skill_dir: str = ""):
                 shutil.rmtree(tmp_path, onerror=remove_readonly)
                 raise ValueError(f"Git 儲存庫中找不到指定目錄: {skill_dir}")
     
-    # 自動偵測：如果根目錄沒有 SKILL.md 但有 skills/ 目錄，且裡面只有一個目錄，或者是想要拉取整個內容
-    elif not (tmp_path / "SKILL.md").exists():
+    # 自動偵測：如果根目錄沒有 SKILL.md 但有 skills/ 目錄，才視為 Monorepo
+    # 注意：必須先確認根目錄本身沒有 SKILL.md（大小寫不敏感搜尋）
+    elif not any(p.name.upper() == "SKILL.MD" for p in tmp_path.iterdir() if p.is_file()):
         if (tmp_path / "skills").is_dir():
-            # 這裡不自動進入，除非我們確定目標。
-            # 但使用者反映多了一層，是因為我們把含有多個技能的 'skills' 目錄整層拷貝過去了。
             source_path = tmp_path / "skills"
             console.print("[dim]提示: 偵測到 Monorepo 結構，將從 'skills/' 目錄安裝。[/dim]")
+        else:
+            console.print(f"[dim]提示: 根目錄路徑 = {tmp_path.resolve()}，內容: {[p.name for p in tmp_path.iterdir()]}[/dim]")
 
     # 確定目標名稱：如果 source_path 是臨時目錄下的某個子目錄，取該子目錄名。
     # 如果 source_path 就是 tmp_path，取倉庫名。
@@ -96,11 +97,11 @@ def install_from_git(url: str, target_dir: Path, skill_dir: str = ""):
     # 但這裡的設計是 pull 一個「技能」。如果 source_path 下面是一堆技能子目錄（且沒有 SKILL.md），
     # 我們應該把那些子目錄分別拷貝到 target_dir。
     
-    if not (source_path / "SKILL.md").exists() and any(p.is_dir() and (p / "SKILL.md").exists() for p in source_path.iterdir()):
+    if not any(p.name.upper() == "SKILL.MD" for p in source_path.iterdir() if p.is_file()) and any(p.is_dir() and any(q.name.upper() == "SKILL.MD" for q in p.iterdir() if q.is_file()) for p in source_path.iterdir()):
         # 這是一個「技能集合」目錄，我們將所有子技能拷貝到 target_dir
         count = 0
         for item in source_path.iterdir():
-            if item.is_dir() and (item / "SKILL.md").exists():
+            if item.is_dir() and any(q.name.upper() == "SKILL.MD" for q in item.iterdir() if q.is_file()):
                 dest = target_dir / item.name
                 if dest.exists():
                     shutil.rmtree(dest, onerror=remove_readonly)
@@ -110,9 +111,11 @@ def install_from_git(url: str, target_dir: Path, skill_dir: str = ""):
         return f"{count} 個技能 (來自 {target_name})"
     else:
         # 單一技能安裝
+        console.print(f"[dim]DEBUG source_path={source_path.resolve()}, 內容: {[p.name for p in source_path.iterdir()]}[/dim]")
         shutil.copytree(source_path, final_path)
+        console.print(f"[dim]DEBUG final_path={final_path.resolve()}, 內容: {[p.name for p in final_path.iterdir()]}[/dim]")
         
-    if not (final_path / "SKILL.md").exists():
+    if not any(p.name.upper() == "SKILL.MD" for p in final_path.iterdir() if p.is_file()):
         console.print("[yellow]⚠️  警告: 安裝路徑下找不到 SKILL.md，這可能不是一個有效的 Agent Skill。[/yellow]")
 
     shutil.rmtree(tmp_path, onerror=remove_readonly)

@@ -48,14 +48,14 @@
         </div>
         <div class="stat-divider" />
         <div class="stat-item">
-          <span class="stat-num">7</span>
+          <span class="stat-num">{{ AGENTS.length }}</span>
           <span class="stat-label">支援的 Agents</span>
         </div>
       </div>
     </section>
 
     <!-- ── Hot Tags ── -->
-    <section class="section">
+    <section v-if="store.tags && store.tags.length > 0" class="section">
       <div class="section-inner">
         <h2 class="section-title">熱門標籤</h2>
         <div class="tags-cloud">
@@ -166,8 +166,11 @@ const query = ref('')
 const AGENTS = [
   { name: 'Antigravity',    id: 'antigravity',    dir: '~/.gemini/antigravity/skills/' },
   { name: 'Claude Code',    id: 'claude-code',    dir: '~/.claude/skills/' },
+  { name: 'Claude Desktop', id: 'claude-desktop', dir: '~/.config/claude/skills/' },
   { name: 'Cursor',         id: 'cursor',         dir: '.cursor/skills/' },
   { name: 'Codex',          id: 'codex',          dir: '.codex/skills/' },
+  { name: 'Gemini',         id: 'gemini',         dir: '~/.gemini/skills/' },
+  { name: 'Kiro',           id: 'kiro',           dir: '~/.kiro/skills/' },
   { name: 'OpenCode',       id: 'opencode',       dir: '.opencode/skills/' },
   { name: 'GitHub Copilot', id: 'github-copilot', dir: '.github/copilot/skills/' },
   { name: 'Roo Code',       id: 'roo',            dir: '.roo/skills/' },

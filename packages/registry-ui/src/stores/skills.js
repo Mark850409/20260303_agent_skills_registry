@@ -4,6 +4,7 @@ import { skillsApi } from '@/api'
 
 export const useSkillsStore = defineStore('skills', () => {
     const skills = ref([])
+    const allSkills = ref([])   // 所有 skill，用於分類計數
     const total = ref(0)
     const page = ref(1)
     const pages = ref(1)
@@ -47,8 +48,18 @@ export const useSkillsStore = defineStore('skills', () => {
         stats.value = res.data
     }
 
+    /** 一次擈取大量 skills（不影響現有分頁），用於分類計數 */
+    async function fetchAllForCount() {
+        try {
+            const res = await skillsApi.list({ page: 1, per_page: 500, sort: 'downloads' })
+            allSkills.value = res.data.skills || []
+        } catch (e) {
+            console.warn('fetchAllForCount failed', e)
+        }
+    }
+
     return {
-        skills, total, page, pages, loading, tags, stats, currentSkill, perPage,
-        fetchSkills, fetchSkill, fetchTags, fetchStats
+        skills, allSkills, total, page, pages, loading, tags, stats, currentSkill, perPage,
+        fetchSkills, fetchSkill, fetchTags, fetchStats, fetchAllForCount
     }
 })

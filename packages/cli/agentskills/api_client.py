@@ -4,7 +4,42 @@ import httpx
 from pathlib import Path
 
 CONFIG_PATH = Path.home() / ".agentskills" / "config"
+
+
+def _load_dotenv():
+    """從當前或上層目錄尋找 .env 並載入到 os.environ（不覆蓋已存在的環境變數）。
+
+    優先使用 python-dotenv；若未安裝則自行解析 KEY=VALUE 格式。
+    """
+    try:
+        from dotenv import load_dotenv as _ld
+        # 從當前工作目錄往上找，找到即載入
+        cwd = Path.cwd()
+        for directory in [cwd, *cwd.parents]:
+            env_file = directory / ".env"
+            if env_file.exists():
+                _ld(dotenv_path=env_file, override=False)
+                break
+    except ImportError:
+        # python-dotenv 未安裝，手動解析
+        cwd = Path.cwd()
+        for directory in [cwd, *cwd.parents]:
+            env_file = directory / ".env"
+            if env_file.exists():
+                for line in env_file.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, _, v = line.partition("=")
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    if k and k not in os.environ:  # 不覆蓋系統環境變數
+                        os.environ[k] = v
+                break
+
+
 def load_config() -> dict:
+    _load_dotenv()  # 先載入 .env，讓後續 os.environ.get 可以讀到
     c = {"registry_url": "http://localhost:5006"}
     if CONFIG_PATH.exists():
         for line in CONFIG_PATH.read_text(encoding="utf-8").splitlines():

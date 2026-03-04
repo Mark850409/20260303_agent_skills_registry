@@ -50,6 +50,11 @@ class Skills(MethodView):
             for tag in tags:
                 query = query.filter(Skill.tags.like(f'%"{tag}"%'))
 
+        category_param = args.get("category", "").strip()
+        if category_param and category_param != "all":
+            query = query.filter(Skill.category == category_param)
+
+
         sort_map = {
             "downloads": Skill.downloads.desc(),
             "name": Skill.name.asc(),
@@ -84,7 +89,8 @@ class Skills(MethodView):
                 license=data.get("license", "MIT"),
                 repository=data.get("repository"),
                 tags=data.get("tags", []),
-                owner_id=user.id # Set owner
+                category=data.get("category"),
+                owner_id=user.id
             )
             db.session.add(skill)
         else:
@@ -103,6 +109,8 @@ class Skills(MethodView):
                 
             skill.description = data["description"]
             skill.tags = data.get("tags", skill.tags)
+            if data.get("category") is not None:
+                skill.category = data["category"]
 
         existing_version = SkillVersion.query.filter_by(
             skill_id=skill.id, version=data["version"]

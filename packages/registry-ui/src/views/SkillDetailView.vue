@@ -86,11 +86,31 @@
           <!-- Skill Bundle Structure -->
           <div class="sidebar-card card">
             <h4 class="sidebar-title">📁 Bundle 結構</h4>
-            <div class="code-block" style="font-size:0.75rem">my-skill/
-├── SKILL.md      ← 必填
-├── scripts/      ← 選填
-├── references/   ← 選填
-└── assets/       ← 選填</div>
+            <div class="bundle-tree">
+              <div class="bundle-root">📂 my-skill/</div>
+              <div class="bundle-items">
+                <div class="bundle-item">
+                  <span class="bundle-icon">📄</span>
+                  <span class="bundle-name">SKILL.md</span>
+                  <span class="bundle-badge required">必填</span>
+                </div>
+                <div class="bundle-item">
+                  <span class="bundle-icon">📁</span>
+                  <span class="bundle-name">scripts/</span>
+                  <span class="bundle-badge optional">選填</span>
+                </div>
+                <div class="bundle-item">
+                  <span class="bundle-icon">📁</span>
+                  <span class="bundle-name">references/</span>
+                  <span class="bundle-badge optional">選填</span>
+                </div>
+                <div class="bundle-item last">
+                  <span class="bundle-icon">📁</span>
+                  <span class="bundle-name">assets/</span>
+                  <span class="bundle-badge optional">選填</span>
+                </div>
+              </div>
+            </div>
           </div>
         </aside>
       </div>
@@ -227,6 +247,61 @@ onMounted(() => {
 
 .not-found { text-align: center; padding: 6rem 1rem; }
 .not-found h2 { margin-bottom: 1.5rem; color: var(--text-secondary); }
+
+/* Bundle Tree */
+.bundle-tree {
+  font-size: 0.82rem;
+}
+.bundle-root {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+.bundle-items {
+  border-left: 2px solid var(--border);
+  margin-left: 0.8rem;
+  padding-left: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.bundle-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.5rem;
+  border-radius: 5px;
+  transition: background 0.15s;
+}
+.bundle-item:hover { background: var(--bg-secondary); }
+.bundle-item.last { margin-top: 0; }
+.bundle-icon { font-size: 0.9em; flex-shrink: 0; }
+.bundle-name {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary);
+  flex: 1;
+}
+.bundle-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.bundle-badge.required {
+  background: rgba(37,164,100,0.15);
+  color: var(--accent);
+  border: 1px solid rgba(37,164,100,0.3);
+}
+.bundle-badge.optional {
+  background: rgba(255,255,255,0.06);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
 
 @media (max-width: 900px) {
   .detail-inner { flex-direction: column; }

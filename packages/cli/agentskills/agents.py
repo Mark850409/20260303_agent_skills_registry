@@ -41,6 +41,21 @@ AGENTS = {
         "global_dir": HOME / ".roo" / "skills",
         "project_dir": Path(".roo") / "skills",
     },
+    "gemini": {
+        "name": "Gemini",
+        "global_dir": HOME / ".gemini" / "skills",
+        "project_dir": Path(".gemini") / "skills",
+    },
+    "kiro": {
+        "name": "Kiro",
+        "global_dir": HOME / ".kiro" / "skills",
+        "project_dir": Path(".kiro") / "skills",
+    },
+    "claude-desktop": {
+        "name": "Claude Desktop",
+        "global_dir": HOME / ".config" / "claude" / "skills",
+        "project_dir": Path(".claude") / "desktop" / "skills",
+    },
 }
 
 

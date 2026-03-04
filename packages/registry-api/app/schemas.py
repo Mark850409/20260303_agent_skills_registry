@@ -15,6 +15,7 @@ class SkillSchema(Schema):
     license = fields.String(dump_default="MIT")
     repository = fields.String()
     tags = fields.List(fields.String(), dump_default=list)
+    category = fields.String(allow_none=True)
     downloads = fields.Integer(dump_only=True)
     latest_version = fields.String(dump_only=True)
     created_at = fields.String(dump_only=True)
@@ -26,6 +27,7 @@ class SkillSchema(Schema):
 class SkillQuerySchema(Schema):
     q = fields.String(load_default="")
     tags = fields.String(load_default="")
+    category = fields.String(load_default="")
     sort = fields.String(load_default="downloads")
     page = fields.Integer(load_default=1)
     per_page = fields.Integer(load_default=20)
@@ -57,6 +59,7 @@ class SkillPushSchema(Schema):
     license = fields.String(load_default="MIT")
     repository = fields.String()
     tags = fields.List(fields.String(), load_default=list)
+    category = fields.String(allow_none=True, load_default=None)
     skill_md = fields.String(required=True)
 
 
@@ -106,6 +109,7 @@ class SkillUpdateSchema(Schema):
     license = fields.String()
     repository = fields.String()
     tags = fields.List(fields.String())
+    category = fields.String(allow_none=True)
 
 
 class UserUpdateSchema(Schema):

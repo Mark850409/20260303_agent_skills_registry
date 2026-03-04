@@ -29,15 +29,60 @@
           <span class="icon">🔍</span>
           <input v-model="searchQuery" placeholder="搜尋技能名稱或描述..." @input="debouncedFetch" />
         </div>
-        <button class="btn-ghost" @click="fetchData(1)">刷新數據</button>
+        <div class="toolbar-right">
+          <!-- 每頁筆數 -->
+          <div class="per-page-wrap">
+            <span class="per-page-label">每頁</span>
+            <select class="per-page-select" v-model="skillPerPage" @change="fetchData(1)">
+              <option :value="5">5 筆</option>
+              <option :value="10">10 筆</option>
+              <option :value="20">20 筆</option>
+              <option :value="50">50 筆</option>
+            </select>
+          </div>
+          <!-- 視圖切換 -->
+          <div class="view-toggle">
+            <button
+              class="view-btn"
+              :class="{ active: skillViewMode === 'list' }"
+              @click="skillViewMode = 'list'"
+              title="列表視圖"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="1" y="2" width="14" height="2" rx="1"/>
+                <rect x="1" y="7" width="14" height="2" rx="1"/>
+                <rect x="1" y="12" width="14" height="2" rx="1"/>
+              </svg>
+            </button>
+            <button
+              class="view-btn"
+              :class="{ active: skillViewMode === 'grid' }"
+              @click="skillViewMode = 'grid'"
+              title="卡片視圖"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="1" y="1" width="6" height="6" rx="1"/>
+                <rect x="9" y="1" width="6" height="6" rx="1"/>
+                <rect x="1" y="9" width="6" height="6" rx="1"/>
+                <rect x="9" y="9" width="6" height="6" rx="1"/>
+              </svg>
+            </button>
+          </div>
+          <button class="btn-ai-classify" @click="classifyAll" :disabled="classifyingAll">
+            {{ classifyingAll ? '⏳ 分類中...' : '🤖 AI 自動分類全部' }}
+          </button>
+          <button class="btn-ghost" @click="fetchData(1)">刷新數據</button>
+        </div>
       </div>
 
-      <div class="table-container">
+      <!-- 列表視圖 -->
+      <div v-if="skillViewMode === 'list'" class="table-container">
         <table class="admin-table">
           <thead>
             <tr>
               <th>技能名稱</th>
               <th>作者</th>
+              <th>分類</th>
               <th>標籤</th>
               <th>下載次數</th>
               <th>最新版本</th>
@@ -50,6 +95,19 @@
                 <span class="skill-name">{{ skill.name }}</span>
               </td>
               <td>{{ skill.author }}</td>
+              <!-- 分類欄位 -->
+              <td class="category-cell">
+                <select
+                  class="category-select"
+                  :value="skill.category || ''"
+                  @change="setSkillCategory(skill, $event.target.value)"
+                >
+                  <option value="">— 未分類 —</option>
+                  <option v-for="cat in CATEGORIES" :key="cat.id" :value="cat.id">
+                    {{ cat.icon }} {{ cat.label }}
+                  </option>
+                </select>
+              </td>
               <td>
                 <div class="tag-row">
                   <span v-for="tag in (skill.tags || []).slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
@@ -63,16 +121,57 @@
               </td>
             </tr>
             <tr v-if="skills.length === 0" class="empty-row">
-              <td colspan="6">尚無任何技能數據</td>
+              <td colspan="7">尚無任何技能數據</td>
             </tr>
           </tbody>
         </table>
       </div>
 
+      <!-- 卡片視圖 -->
+      <div v-else class="skill-cards-grid">
+        <div v-if="skills.length === 0" class="cards-empty">尚無任何技能數據</div>
+        <div v-for="skill in skills" :key="skill.id" class="skill-card-admin">
+          <div class="card-head">
+            <div class="card-icon">🧩</div>
+            <div class="card-meta">
+              <div class="card-name">{{ skill.name }}</div>
+              <div class="card-author">@{{ skill.author }}</div>
+            </div>
+            <code class="card-version">v{{ skill.latest_version }}</code>
+          </div>
+          <!-- 分類 badge -->
+          <div class="card-category">
+            <select
+              class="category-select"
+              :value="skill.category || ''"
+              @change="setSkillCategory(skill, $event.target.value)"
+            >
+              <option value="">— 未分類 —</option>
+              <option v-for="cat in CATEGORIES" :key="cat.id" :value="cat.id">
+                {{ cat.icon }} {{ cat.label }}
+              </option>
+            </select>
+          </div>
+          <div class="card-tags">
+            <span v-for="tag in (skill.tags || []).slice(0, 4)" :key="tag" class="tag">{{ tag }}</span>
+            <span v-if="!(skill.tags || []).length" class="no-tag">無標籤</span>
+          </div>
+          <div class="card-stats">
+            <span class="card-stat">⬇ {{ skill.downloads }} 次下載</span>
+          </div>
+          <div class="card-actions">
+            <button class="btn-action edit" @click="editSkill(skill)">編輯</button>
+            <button class="btn-action delete" @click="confirmDelete(skill)">刪除</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 技能分頁 -->
-      <div class="pagination" v-if="skillPagination.pages > 1">
+      <div class="pagination" v-if="skillPagination.pages >= 1">
         <button :disabled="skillPagination.page === 1" @click="fetchData(skillPagination.page - 1)">上一頁</button>
-        <span class="page-info">第 {{ skillPagination.page }} / {{ skillPagination.pages }} 頁 (共 {{ skillPagination.total }} 筆)</span>
+        <span class="page-info">
+          第 {{ skillPagination.page }} / {{ skillPagination.pages }} 頁 (共 {{ skillPagination.total }} 筆，每頁 {{ skillPerPage }} 筆)
+        </span>
         <button :disabled="skillPagination.page === skillPagination.pages" @click="fetchData(skillPagination.page + 1)">下一頁</button>
       </div>
     </div>
@@ -218,9 +317,30 @@ const stats = ref({})
 const searchQuery = ref('')
 const userSearchQuery = ref('')
 
+// 視圖模式
+const skillViewMode = ref('list')  // 'list' | 'grid'
+
+// 每頁筆數
+const skillPerPage = ref(10)
+const userPerPage = ref(15)
+
 // 分頁狀態
-const skillPagination = reactive({ page: 1, total: 0, pages: 1, per_page: 15 })
-const userPagination = reactive({ page: 1, total: 0, pages: 1, per_page: 15 })
+const skillPagination = reactive({ page: 1, total: 0, pages: 1 })
+const userPagination = reactive({ page: 1, total: 0, pages: 1 })
+
+// ── 分類常數（與後端 CATEGORIES 同步） ──
+const CATEGORIES = [
+  { id: 'coding',        label: '程式開發',    icon: '💻' },
+  { id: 'web',           label: 'Web / UI',   icon: '🌐' },
+  { id: 'data',          label: '資料分析',    icon: '📊' },
+  { id: 'writing',       label: '文案 / 文件', icon: '✍️'  },
+  { id: 'ai',            label: 'AI / Agent', icon: '🤖' },
+  { id: 'design',        label: '設計 / 創作', icon: '🎨' },
+  { id: 'productivity',  label: '效率工具',    icon: '⚡' },
+  { id: 'devops',        label: 'DevOps',     icon: '🛠️' },
+]
+
+const classifyingAll = ref(false)
 
 const editingSkill = ref(null)
 const editForm = ref({ description: '', author: '', tagsString: '' })
@@ -237,7 +357,7 @@ async function fetchData(page = 1) {
   try {
     const headers = { 'Authorization': `Bearer ${authStore.token}` }
     const [skillsRes, statsRes] = await Promise.all([
-      fetch(`/api/admin/skills?q=${searchQuery.value}&page=${page}&per_page=${skillPagination.per_page}`, { headers }),
+      fetch(`/api/admin/skills?q=${searchQuery.value}&page=${page}&per_page=${skillPerPage.value}`, { headers }),
       fetch('/api/skills/stats')
     ])
     if (skillsRes.status === 401) { authStore.logout(); return }
@@ -256,7 +376,7 @@ async function fetchData(page = 1) {
 async function fetchUsers(page = 1) {
   userPagination.page = page
   try {
-    const res = await fetch(`/api/admin/users?q=${userSearchQuery.value}&page=${page}&per_page=${userPagination.per_page}`, {
+    const res = await fetch(`/api/admin/users?q=${userSearchQuery.value}&page=${page}&per_page=${userPerPage.value}`, {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (res.ok) {
@@ -269,6 +389,52 @@ async function fetchUsers(page = 1) {
     console.error('Failed to fetch users', e)
   }
 }
+
+// ── 分類管理 ──────────────────────────────────────────────────────
+
+/** AI 批次自動分類全部技能 */
+async function classifyAll() {
+  if (!confirm('將由 AI 自動分類所有技能（會覆蓋現有分類），確定執行？')) return
+  classifyingAll.value = true
+  try {
+    const res = await fetch('/api/admin/skills/classify-all', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (!res.ok) { alert('分類失敗，請確認登入狀態'); return }
+    const data = await res.json()
+    alert(`✅ 完成！已自動分類 ${data.classified} 個技能（${data.skipped} 個無法判斷）`)
+    await fetchData(skillPagination.page)
+  } catch (e) {
+    console.error('classifyAll error', e)
+  } finally {
+    classifyingAll.value = false
+  }
+}
+
+/** 手動設定單一技能分類 */
+async function setSkillCategory(skill, categoryId) {
+  const oldCategory = skill.category
+  skill.category = categoryId || null  // 樂觀更新
+  try {
+    const res = await fetch(`/api/admin/skills/${skill.name}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ category: categoryId || null })
+    })
+    if (!res.ok) {
+      skill.category = oldCategory  // 回滾
+      alert('更新分類失敗')
+    }
+  } catch (e) {
+    skill.category = oldCategory
+    console.error('setSkillCategory error', e)
+  }
+}
+
 
 watch(currentTab, (newTab) => {
   if (newTab === 'users') fetchUsers()
@@ -436,9 +602,134 @@ onMounted(() => {
 .stat-value { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
 
 .admin-content { padding: 1.5rem; background: var(--bg-secondary); border-color: var(--border-subtle); overflow: hidden; }
-.toolbar { display: flex; justify-content: space-between; margin-bottom: 1.2rem; gap: 1rem; }
-.search-box { flex: 1; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0 1rem; display: flex; align-items: center; gap: 0.6rem; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; gap: 1rem; flex-wrap: wrap; }
+.toolbar-right { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
+.search-box { flex: 1; min-width: 180px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0 1rem; display: flex; align-items: center; gap: 0.6rem; }
 .search-box input { background: transparent; border: none; color: #fff; padding: 0.6rem 0; width: 100%; outline: none; font-size: 0.9rem; }
+
+/* 每頁筆數 */
+.per-page-wrap { display: flex; align-items: center; gap: 0.4rem; }
+.per-page-label { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+.per-page-select {
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+}
+.per-page-select:focus { border-color: var(--accent); }
+
+/* AI 自動分類按鈕 */
+.btn-ai-classify {
+  padding: 0.3rem 0.8rem;
+  border-radius: 7px;
+  border: 1px solid var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-ai-classify:hover:not(:disabled) { background: var(--accent); color: #000; }
+.btn-ai-classify:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 分類下拉 */
+.category-cell { min-width: 140px; }
+.category-select {
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  min-width: 130px;
+}
+.category-select:focus { border-color: var(--accent); }
+.card-category { margin-bottom: 0.2rem; }
+.card-category .category-select { min-width: unset; }
+
+
+/* 視圖切換 */
+.view-toggle { display: flex; gap: 2px; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+.view-btn {
+  padding: 0.3rem 0.5rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.view-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.view-btn.active { background: var(--accent-dim); color: var(--accent); }
+
+/* 卡片視圖 */
+.skill-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.cards-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.skill-card-admin {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.skill-card-admin:hover {
+  border-color: rgba(37,164,100,0.4);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+.card-head { display: flex; align-items: flex-start; gap: 0.6rem; }
+.card-icon { font-size: 1.4rem; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.card-meta { flex: 1; min-width: 0; }
+.card-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-author { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
+.card-version {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+.card-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; min-height: 22px; }
+.card-tags .tag { font-size: 0.65rem; }
+.no-tag { font-size: 0.72rem; color: var(--text-muted); }
+.card-stats { font-size: 0.75rem; color: var(--text-muted); }
+.card-actions { display: flex; gap: 0.4rem; margin-top: 0.2rem; }
 
 .admin-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .admin-table th { text-align: left; padding: 0.8rem 1rem; border-bottom: 2px solid var(--border); color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; }

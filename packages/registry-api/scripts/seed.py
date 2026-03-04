@@ -14,6 +14,7 @@ SEED_SKILLS = [
         "description": "讓 AI Agent 能夠執行網頁搜尋，獲取最新資訊",
         "author": "agentskills-team",
         "license": "MIT",
+        "category": "productivity",
         "tags": ["search", "web", "productivity", "information"],
         "repository": "https://github.com/agentskills/skills",
         "version": "1.0.0",
@@ -48,6 +49,7 @@ This skill enables the AI agent to search the web for current information.
         "description": "系統性程式碼審查：安全性、效能、最佳實踐",
         "author": "agentskills-team",
         "license": "MIT",
+        "category": "coding",
         "tags": ["code", "review", "quality", "security"],
         "repository": "https://github.com/agentskills/skills",
         "version": "1.0.0",
@@ -84,6 +86,7 @@ Provide feedback as:
         "description": "Git 工作流程最佳實踐與自動化工具",
         "author": "agentskills-team",
         "license": "MIT",
+        "category": "devops",
         "tags": ["git", "workflow", "devops", "automation"],
         "repository": "https://github.com/agentskills/skills",
         "version": "1.0.0",
@@ -124,6 +127,7 @@ Types: feat, fix, docs, style, refactor, test, chore
         "description": "自動產生高品質技術文件、API 文件與 README",
         "author": "agentskills-team",
         "license": "MIT",
+        "category": "writing",
         "tags": ["documentation", "writing", "api", "readme"],
         "repository": "https://github.com/agentskills/skills",
         "version": "1.0.0",
@@ -153,6 +157,7 @@ Generate high-quality technical documentation automatically.
         "description": "根據程式碼自動生成完整的單元測試與整合測試",
         "author": "agentskills-team",
         "license": "MIT",
+        "category": "coding",
         "tags": ["testing", "tdd", "automation", "quality"],
         "repository": "https://github.com/agentskills/skills",
         "version": "1.0.0",
@@ -192,10 +197,34 @@ import hashlib
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
+def _migrate_add_columns(engine):
+    """對現有 SQLite DB 補上新欄位（idempotent migration）。"""
+    with engine.connect() as conn:
+        # 取得 skills 表現有欄位名稱
+        existing_cols = {
+            row[1]
+            for row in conn.execute(
+                __import__('sqlalchemy').text("PRAGMA table_info(skills)")
+            )
+        }
+        # 定義需要補上的欄位（欄位名 -> ALTER TABLE 語句）
+        missing_ddl = {
+            "category": "ALTER TABLE skills ADD COLUMN category VARCHAR(50)",
+        }
+        for col, ddl in missing_ddl.items():
+            if col not in existing_cols:
+                conn.execute(__import__('sqlalchemy').text(ddl))
+                print(f"[MIGRATE] Added column: skills.{col}")
+        conn.commit()
+
+
 def seed():
     app = create_app("development")
     with app.app_context():
         db.create_all()
+
+        # 自動 Migration：對現有 DB 補上尚未存在的欄位
+        _migrate_add_columns(db.engine)
 
         # 1. 建立管理員用戶
         admin = User.query.filter_by(username="admin").first()
@@ -241,7 +270,8 @@ def seed():
                 repository=data["repository"],
                 latest_version=data["version"],
                 downloads=0,
-                owner_id=admin.id
+                owner_id=admin.id,
+                category=data.get("category"),
             )
             db.session.add(skill)
             db.session.flush()
