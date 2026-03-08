@@ -50,6 +50,7 @@ services:
 
   verdaccio:
     image: verdaccio/verdaccio:5
+    user: "0:0"
     ports:
       - "4874:4873"
     expose:
