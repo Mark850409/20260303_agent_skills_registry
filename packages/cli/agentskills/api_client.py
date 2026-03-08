@@ -126,12 +126,12 @@ def push_skill(payload: dict) -> dict:
     return resp.json()
 
 
-def login(username: str, email: str, registry_url: str = None) -> str:
+def login(username: str, password: str, registry_url: str = None) -> str:
     if registry_url:
         save_config(registry_url=registry_url)
     resp = httpx.post(
         f"{get_registry_url()}/api/auth/login",
-        json={"username": username, "email": email},
+        json={"username": username, "password": password},
         timeout=15,
     )
     resp.raise_for_status()

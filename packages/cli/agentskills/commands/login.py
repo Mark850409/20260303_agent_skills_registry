@@ -17,11 +17,11 @@ def login_cmd(registry):
         registry_url = current_registry
 
     username = click.prompt("使用者名稱 (Username)")
-    email = click.prompt("電子郵件 (Email)")
+    password = click.prompt("密碼 (Password)", hide_input=True)
     
     try:
         api.save_config(registry_url=registry_url)
-        token = api.login(username, email)
+        token = api.login(username, password)
         api.save_token(token)
         console.print(f"\n[green]✓ 登錄成功！[/green] Token 與環境已儲存至本地。")
         console.print(f"你的使用者名稱是: [bold]{username}[/bold]")
