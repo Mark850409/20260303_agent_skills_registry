@@ -1,0 +1,21 @@
+{
+    "name": "agentskills",
+    "version": "1.0.0",
+    "description": "CLI for AI Skills & Apps Registry",
+    "main": "bin/agentskills.js",
+    "bin": {
+        "agentskills": "bin/agentskills.js"
+    },
+    "scripts": {
+        "postinstall": "node install_deps.js"
+    },
+    "author": "AI Skills & Apps Team",
+    "license": "MIT",
+    "files": [
+        "agentskills",
+        "bin",
+        "install_deps.js",
+        "requirements.txt",
+        "setup.py"
+    ]
+}

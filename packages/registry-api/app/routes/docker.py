@@ -4,6 +4,7 @@ import base64
 import os
 import re
 from app.models import DockerRepository
+from app.routes.auth import require_permission
 import concurrent.futures
 
 docker_bp = Blueprint('docker', __name__)
@@ -23,21 +24,34 @@ def auth_check():
     original_method = request.headers.get('X-Original-Method', request.method)
     original_uri = request.headers.get('X-Original-URI', request.path)
     
-    # Allow read requests
+    # 1. 處理 Docker Login 請求 (/v2/)
+    # 對於 /v2/，我們只需確認 Nginx 轉發了正確的 Authorization 標頭（Nginx 已處理基礎驗證）
+    if original_uri == '/v2/' or original_uri == '/v2':
+        return "OK", 200
+
+    # 2. 允許唯讀操作 (GET, HEAD) 如果不需要層級驗證
     if original_method in ['GET', 'HEAD', 'OPTIONS']:
         return "OK", 200
         
-    # Match /v2/<repo_name>/(blobs|manifests|tags)/...
+    # 3. 比對具體的倉庫操作 /v2/<repo_name>/(blobs|manifests|tags)/...
     match = re.match(r'^/v2/(.*?)/(blobs|manifests|tags)($|/)', original_uri)
     if not match:
+        # 非特定倉庫操作（如存取根目錄或其他非核心 API），放行
         return "OK", 200
         
     repo_name = match.group(1)
     
-    # Verify if repo exists in our database
-    repo = DockerRepository.query.filter_by(name=repo_name).first()
-    if not repo:
-        return jsonify({"error": f"Repository '{repo_name}' not found. Please create it in the Admin panel first."}), 403
+    # 驗證資料庫中是否存在該倉庫 (針對寫入操作，雖然目前 GET 也會走到這裡，但多一層檢和更安全)
+    try:
+        repo = DockerRepository.query.filter_by(name=repo_name).first()
+        if not repo:
+            # 如果是寫入操作 (Push)，強制要求倉庫必須先建立
+            if original_method not in ['GET', 'HEAD', 'OPTIONS']:
+                return jsonify({"error": f"Repository '{repo_name}' not found. Please create it in the Admin panel first."}), 403
+    except Exception as e:
+        # 防止資料庫連線暫時中斷導致的 500 錯誤
+        print(f"Auth check database error: {e}")
+        return "OK", 200
         
     return "OK", 200
 
@@ -46,19 +60,32 @@ def get_catalog():
     try:
         # Get from our DB first
         db_repos = DockerRepository.query.all()
-        db_repo_names = {r.name for r in db_repos}
+        repos_dict = {r.name: r.description or "" for r in db_repos}
         
         # Merge with actual registry catalog if any exist
         try:
             response = requests.get(f"{REGISTRY_URL}/v2/_catalog", headers=auth_header, timeout=5)
             if response.status_code == 200:
                 registry_repos = response.json().get('repositories', [])
-                db_repo_names.update(registry_repos)
+                new_repos_added = False
+                for r_name in registry_repos:
+                    if r_name not in repos_dict:
+                        try:
+                            new_repo = DockerRepository(name=r_name, description="Auto-registered from registry")
+                            db.session.add(new_repo)
+                            repos_dict[r_name] = new_repo.description
+                            new_repos_added = True
+                        except Exception:
+                            db.session.rollback()
+                
+                if new_repos_added:
+                    db.session.commit()
         except Exception:
             pass # Ignore registry connection errors here, show db repos at least
             
+        result = [{"name": name, "description": desc} for name, desc in repos_dict.items()]
         return jsonify({
-            "repositories": sorted(list(db_repo_names))
+            "repositories": sorted(result, key=lambda x: x["name"])
         })
     except Exception as e:
         print(f"Docker Catalog Error: {str(e)}")
@@ -152,8 +179,14 @@ def get_tags_details(repo):
 @docker_bp.route('/<path:repo>/manifest/<tag>', methods=['GET'])
 def get_manifest(repo, tag):
     try:
-        # We need the digest for deletion, so we request the manifest with the required accept header
-        headers = {**auth_header, 'Accept': 'application/vnd.docker.distribution.manifest.v2+json'}
+        # We need the digest for deletion, so we request the manifest with the required accept headers
+        accepts = [
+            'application/vnd.docker.distribution.manifest.v2+json',
+            'application/vnd.docker.distribution.manifest.list.v2+json',
+            'application/vnd.oci.image.manifest.v1+json',
+            'application/vnd.oci.image.index.v1+json'
+        ]
+        headers = {**auth_header, 'Accept': ', '.join(accepts)}
         response = requests.get(f"{REGISTRY_URL}/v2/{repo}/manifests/{tag}", headers=headers)
         response.raise_for_status()
         
@@ -170,6 +203,7 @@ def get_manifest(repo, tag):
         return jsonify({"error": str(e)}), 500
 
 @docker_bp.route('/<path:repo>/manifest/<digest>', methods=['DELETE'])
+@require_permission("admin:access")
 def delete_artifact(repo, digest):
     try:
         response = requests.delete(f"{REGISTRY_URL}/v2/{repo}/manifests/{digest}", headers=auth_header)
@@ -181,6 +215,6 @@ def delete_artifact(repo, digest):
 @docker_bp.route('/info', methods=['GET'])
 def get_info():
     return jsonify({
-        "external_url": REGISTRY_EXTERNAL_URL,
+        "external_url": REGISTRY_EXTERNAL_URL.replace('http://', '').replace('https://', '').split('/')[0],
         "username": REGISTRY_USER
     })

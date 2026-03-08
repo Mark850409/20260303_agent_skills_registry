@@ -20,16 +20,7 @@ def create_app(config_name="default"):
     # Extensions
     db.init_app(app)
     
-    # Enable SQLite WAL mode (Write-Ahead Logging) to improve concurrency
-    with app.app_context():
-        if "sqlite" in app.config["SQLALCHEMY_DATABASE_URI"]:
-            from sqlalchemy import event
-            @event.listens_for(db.engine, "connect")
-            def set_sqlite_pragma(dbapi_connection, connection_record):
-                cursor = dbapi_connection.cursor()
-                cursor.execute("PRAGMA journal_mode=WAL")
-                cursor.execute("PRAGMA synchronous=NORMAL")
-                cursor.close()
+    migrate.init_app(app, db)
 
     migrate.init_app(app, db)
     CORS(app, origins="*")
@@ -44,12 +35,14 @@ def create_app(config_name="default"):
     from app.routes.mcps import mcps_blp
 
     from app.routes.docker import docker_bp
+    from app.routes.npm import npm_bp
     
     api.register_blueprint(skills_blp)
     api.register_blueprint(auth_blp)
     api.register_blueprint(admin_blp)
     api.register_blueprint(mcps_blp)
     app.register_blueprint(docker_bp, url_prefix='/api/docker')
+    app.register_blueprint(npm_bp, url_prefix='/api/npm')
 
     # Health check
     @app.route("/api/health")

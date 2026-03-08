@@ -259,7 +259,12 @@ class AdminUsers(MethodView):
         if User.query.filter_by(username=data["username"]).first():
             abort(409, message="Username already exists")
         
+        from werkzeug.security import generate_password_hash
+        password = data.pop("password")
+        
         user = User(**data)
+        user.password_hash = generate_password_hash(password)
+        
         db.session.add(user)
         db.session.commit()
         return user
@@ -271,13 +276,18 @@ class AdminUserDetail(MethodView):
     @admin_blp.response(200, UserSchema)
     @require_permission("admin:access")
     def patch(self, data, user_id):
-        """[管理員] 修改使用者資訊（用戶名、Email、角色、權限）"""
+        """[管理員] 修改使用者資訊（用戶名、Email、角色、權限、密碼）"""
         user = User.query.get_or_404(user_id)
         
         # 防止用戶名衝突
         if "username" in data and data["username"] != user.username:
             if User.query.filter_by(username=data["username"]).first():
                 abort(409, message="Username already exists")
+
+        # 處理密碼變更
+        if "password" in data:
+            from werkzeug.security import generate_password_hash
+            user.password_hash = generate_password_hash(data.pop("password"))
 
         for key, value in data.items():
             setattr(user, key, value)
@@ -476,4 +486,84 @@ class AdminDockerRepoDetail(MethodView):
         except Exception as e:
             print(f"Failed to delete physical repository directory {repo_path}: {e}")
             
+        return ""
+
+# ── Npm Package 管理端點 ───────────────────────────────────────────
+from app.models import NpmPackage
+from app.schemas import (
+    NpmPackageSchema, NpmPackageQuerySchema, 
+    NpmPackageListResponseSchema, NpmPackageCreateSchema,
+    NpmPackageUpdateSchema
+)
+
+@admin_blp.route("/npm-packages")
+class AdminNpmPackages(MethodView):
+    @admin_blp.arguments(NpmPackageQuerySchema, location="query")
+    @admin_blp.response(200, NpmPackageListResponseSchema)
+    @require_permission("admin:access")
+    def get(self, args):
+        """[管理員] 列出所有 Npm 套件"""
+        q = args.get("q", "").strip()
+        page = args.get("page", 1)
+        per_page = args.get("per_page", 10)
+
+        query = NpmPackage.query
+
+        if q:
+            query = query.filter(
+                db.or_(
+                    NpmPackage.name.ilike(f"%{q}%"),
+                    NpmPackage.description.ilike(f"%{q}%")
+                )
+            )
+
+        query = query.order_by(NpmPackage.created_at.desc())
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        return {
+            "packages": paginated.items,
+            "total": paginated.total,
+            "page": paginated.page,
+            "pages": paginated.pages,
+            "per_page": per_page,
+        }
+
+    @admin_blp.arguments(NpmPackageCreateSchema)
+    @admin_blp.response(201, NpmPackageSchema)
+    @require_permission("admin:access")
+    def post(self, data):
+        """[管理員] 新增 NPM 套件"""
+        if NpmPackage.query.filter_by(name=data["name"]).first():
+            abort(409, message="NPM package name already exists")
+        
+        pkg = NpmPackage(**data)
+        from flask import g
+        if hasattr(g, 'user') and g.user:
+            pkg.owner_id = g.user.id
+
+        db.session.add(pkg)
+        db.session.commit()
+        return pkg
+
+@admin_blp.route("/npm-packages/<int:pkg_id>")
+class AdminNpmPackageDetail(MethodView):
+    @admin_blp.arguments(NpmPackageUpdateSchema)
+    @admin_blp.response(200, NpmPackageSchema)
+    @require_permission("admin:access")
+    def patch(self, data, pkg_id):
+        """[管理員] 修改 NPM 套件描述"""
+        pkg = NpmPackage.query.get_or_404(pkg_id)
+        for key, value in data.items():
+            if value is not None:
+                setattr(pkg, key, value)
+        db.session.commit()
+        return pkg
+
+    @admin_blp.response(204)
+    @require_permission("admin:access")
+    def delete(self, pkg_id):
+        """[管理員] 刪除 NPM 套件"""
+        pkg = NpmPackage.query.get_or_404(pkg_id)
+        db.session.delete(pkg)
+        db.session.commit()
         return ""

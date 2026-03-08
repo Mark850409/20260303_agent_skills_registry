@@ -67,7 +67,7 @@ class SkillPushSchema(Schema):
 
 class AuthLoginSchema(Schema):
     username = fields.String(required=True)
-    email = fields.Email(required=True)
+    password = fields.String(required=True, load_only=True)
 
 
 class AuthTokenSchema(Schema):
@@ -101,6 +101,7 @@ class UserListResponseSchema(Schema):
 class UserCreateSchema(Schema):
     username = fields.String(required=True)
     email = fields.String(required=True)
+    password = fields.String(required=True, load_only=True)
     role = fields.String(load_default="user")
     permissions = fields.List(fields.String(), load_default=list)
 
@@ -118,6 +119,7 @@ class SkillUpdateSchema(Schema):
 class UserUpdateSchema(Schema):
     username = fields.String()
     email = fields.String()
+    password = fields.String(load_only=True)
     role = fields.String()
     permissions = fields.List(fields.String())
 
@@ -236,4 +238,37 @@ class DockerRepositoryCreateSchema(Schema):
 
 
 class DockerRepositoryUpdateSchema(Schema):
+    description = fields.String(allow_none=True)
+
+# ── Npm Package Schemas ──────────────────────────────────────────────
+
+class NpmPackageSchema(Schema):
+    id = fields.Integer(dump_only=True)
+    name = fields.String(required=True)
+    description = fields.String(allow_none=True)
+    owner_id = fields.Integer(dump_only=True)
+    created_at = fields.String(dump_only=True)
+    updated_at = fields.String(dump_only=True)
+
+
+class NpmPackageQuerySchema(Schema):
+    q = fields.String(load_default="")
+    page = fields.Integer(load_default=1)
+    per_page = fields.Integer(load_default=10)
+
+
+class NpmPackageListResponseSchema(Schema):
+    packages = fields.List(fields.Nested(NpmPackageSchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    pages = fields.Integer()
+    per_page = fields.Integer()
+
+
+class NpmPackageCreateSchema(Schema):
+    name = fields.String(required=True)
+    description = fields.String(allow_none=True)
+
+
+class NpmPackageUpdateSchema(Schema):
     description = fields.String(allow_none=True)

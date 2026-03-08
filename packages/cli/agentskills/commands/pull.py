@@ -50,17 +50,24 @@ def install_from_git(url: str, target_dir: Path, skill_dir: str = ""):
         clean_url = f"https://gitlab.com/{url.split(':', 1)[1]}"
 
     try:
-        from git import Repo, exc
-    except ImportError:
-        raise ImportError("未能在系統中找到 Git。請先安裝 Git 並將其加入系統 PATH (環境變數) 中。")
+        from git import Repo
+    except (ImportError, Exception) as e:
+        # 特別處理 Git 引發的各類環境問題
+        error_msg = str(e).lower()
+        if "git" in error_msg or "executable" in error_msg:
+            raise RuntimeError("系統中找不到 Git 或 Git 執行檔無效。\n[提示] 請先安裝 Git 並將其加入系統 PATH (環境變數) 中。\n若您只是要下載 Registry 上的 Skill，請直接使用: agentskills pull <name>")
+        raise ImportError(f"無法載入 Git 模組: {e}")
 
     try:
         Repo.clone_from(clean_url, tmp_path, depth=1)
     except Exception as e:
-        if "Bad git executable" in str(e) or (hasattr(e, '__class__') and e.__class__.__name__ == 'GitCommandNotFound'):
-            raise RuntimeError("Git 執行檔無效或未在 PATH 中。請確保系統已正確安裝 Git。")
         if tmp_path.exists():
             shutil.rmtree(tmp_path, onerror=remove_readonly)
+        
+        # 再次檢查是否為執行檔找不到的問題
+        err_str = str(e).lower()
+        if "git" in err_str and ("not found" in err_str or "no such file" in err_str):
+             raise RuntimeError("Git 命令執行失敗，請確保系統已正確安裝 Git 並可在終端機中執行 `git --version`。")
         raise e
     
     # 邏輯優化：偵測來源路徑

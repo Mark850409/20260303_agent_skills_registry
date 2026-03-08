@@ -60,6 +60,18 @@ const routes = [
         name: 'DockerRepoDetail',
         component: () => import('@/views/DockerRepoDetailView.vue'),
         meta: { title: '倉庫詳情 — AI Skills & Apps Registry' }
+    },
+    {
+        path: '/npm',
+        name: 'NpmRegistry',
+        component: () => import('@/views/NpmRegistryView.vue'),
+        meta: { title: 'NPM 倉庫 — AI Skills & Apps Registry' }
+    },
+    {
+        path: '/npm/:name+',
+        name: 'NpmPackageDetail',
+        component: () => import('@/views/NpmPackageDetailView.vue'),
+        meta: { title: 'NPM 套件詳情 — AI Skills & Apps Registry' }
     }
 ]
 

@@ -27,7 +27,7 @@
         </div>
 
         <div class="install-hint">
-          <span class="code-inline">pip install agentskills</span>
+          <span class="code-inline">npm install -g agentskills</span>
           <span class="text-muted">然後執行</span>
           <span class="code-inline">agentskills search &lt;keyword&gt;</span>
         </div>
@@ -170,7 +170,7 @@
           <div class="qs-card card">
             <div class="qs-num">01</div>
             <h3>安裝 CLI</h3>
-            <div class="code-block">pip install agentskills</div>
+            <div class="code-block">npm install -g agentskills</div>
           </div>
           <div class="qs-card card">
             <div class="qs-num">02</div>

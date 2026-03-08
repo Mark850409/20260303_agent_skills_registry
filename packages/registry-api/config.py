@@ -17,11 +17,8 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    # 使用基於專案目錄的資料庫路徑，確保在 Docker 外部也能正確運作
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{os.path.join(basedir, 'data', 'registry.db')}"
-    )
+    # 僅從環境變數讀取，不再硬編碼預設連線字串
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
 
 
 class ProductionConfig(Config):

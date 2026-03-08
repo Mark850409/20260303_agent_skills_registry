@@ -18,11 +18,11 @@
           />
         </div>
         <div class="form-group">
-          <label>Email</label>
+          <label>密碼</label>
           <input 
-            v-model="form.email" 
-            type="email" 
-            placeholder="your@email.com" 
+            v-model="form.password" 
+            type="password" 
+            placeholder="輸入密碼" 
             required
             :disabled="loading"
           />
@@ -38,7 +38,7 @@
       </form>
 
       <div class="login-footer">
-        <p>開發模式：使用 <code>admin</code> / <code>admin@example.com</code> 登入</p>
+        <p>請輸入您的管理員帳號與密碼進行登入</p>
       </div>
     </div>
   </div>
@@ -55,7 +55,7 @@ const authStore = useAuthStore()
 
 const form = reactive({
   username: '',
-  email: ''
+  password: ''
 })
 
 const loading = ref(false)
@@ -65,7 +65,7 @@ async function handleLogin() {
   loading.value = true
   error.value = ''
   try {
-    await authStore.login(form.username, form.email)
+    await authStore.login(form.username, form.password)
     
     // 如果是管理員，且沒有指定的 redirect，則導向管理後台
     let redirectPath = route.query.redirect

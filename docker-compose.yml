@@ -7,7 +7,7 @@ services:
       - "5006:5006"
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=sqlite:////app/data/registry.db
+      - DATABASE_URL=postgresql://registry_user:registry_password@db:5432/registry_db
     volumes:
       - ./packages/registry-api:/app
       - ./packages/cli:/cli
@@ -18,6 +18,7 @@ services:
       - agentskills-network
     depends_on:
       - registry
+      - db
 
   registry:
     image: registry:2
@@ -45,6 +46,20 @@ services:
     depends_on:
       - registry
       - api
+      - verdaccio
+
+  verdaccio:
+    image: verdaccio/verdaccio:5
+    expose:
+      - "4873"
+    environment:
+      - VERDACCIO_PORT=4873
+    volumes:
+      - ./data/verdaccio/storage:/verdaccio/storage
+      - ./data/verdaccio/conf:/verdaccio/conf
+      - ./auth:/auth
+    networks:
+      - agentskills-network
 
   ui:
     build:
@@ -61,6 +76,21 @@ services:
       - agentskills-network
     depends_on:
       - api
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=registry_user
+      - POSTGRES_PASSWORD=registry_password
+      - POSTGRES_DB=registry_db
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - agentskills-network
+    ports:
+      - "5435:5432"
+    expose:
+      - "5432"
 
 
 networks:

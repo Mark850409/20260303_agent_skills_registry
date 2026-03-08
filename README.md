@@ -22,10 +22,10 @@ agent-skills-registry/
 
 ## 🚀 快速開始
 
-### 安裝 CLI
+### 安裝 CLI (NPM)
 
 ```bash
-pip install agentskills
+npm install -g agentskills
 ```
 
 ### CLI 指令
@@ -104,7 +104,7 @@ docker compose exec api python scripts/seed.py
 在專案目錄下：
 ```bash
 cd packages/cli
-pip install -e .
+npm install -g .
 ```
 
 ### 2. 建立新的 Skill
@@ -130,6 +130,40 @@ agentskills search web-search
 # 下載並安裝技能到當前專案
 agentskills pull web-search --agent cursor
 ```
+
+---
+
+## 📦 套件發布與管理 (NPM & Docker)
+
+### 發布 NPM 套件
+1. **設定 Registry**:
+   ```bash
+   npm config set registry http://localhost:5005/npm
+   ```
+2. **登入與發布**:
+   ```bash
+   npm login
+   npm publish
+   ```
+3. **刪除套件**:
+   ```bash
+   npm unpublish <package-name> --force
+   ```
+
+### 發布 Docker 鏡像
+1. **登入 Registry**:
+   ```bash
+   docker login localhost:5005
+   ```
+2. **標記與推送**:
+   ```bash
+   docker tag my-image localhost:5005/my-repo:latest
+   docker push localhost:5005/my-repo:latest
+   ```
+3. **移除本地緩存**:
+   ```bash
+   docker rmi localhost:5005/my-repo:latest
+   ```
 
 ---
 

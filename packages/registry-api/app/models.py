@@ -109,6 +109,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255))
     api_token_hash = db.Column(db.String(255))
     role = db.Column(db.String(20), default="user")  # admin, maintainer, user
     permissions = db.Column(db.JSON, default=list)   # e.g ["skill:create", "skill:delete"]
@@ -231,3 +232,36 @@ class DockerRepository(db.Model):
 
     def __repr__(self):
         return f"<DockerRepository {self.name}>"
+
+class NpmPackage(db.Model):
+    """A managed NPM Package in the Registry."""
+
+    __tablename__ = "npm_packages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    def to_dict(self):
+        def format_date(dt):
+            if dt is None: return None
+            return dt.isoformat() if hasattr(dt, "isoformat") else str(dt)
+
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "owner_id": self.owner_id,
+            "created_at": format_date(self.created_at),
+            "updated_at": format_date(self.updated_at),
+        }
+
+    def __repr__(self):
+        return f"<NpmPackage {self.name}>"

@@ -8,6 +8,7 @@
           <template v-else-if="currentTab === 'mcps'">MCP 服務註冊與分析中心</template>
           <template v-else-if="currentTab === 'users'">系統帳號與權限核發中心</template>
           <template v-else-if="currentTab === 'docker'">Docker 容器映像管理與儲存庫</template>
+          <template v-else-if="currentTab === 'npm'">NPM 套件管理與儲存庫</template>
         </p>
       </div>
       <div class="stats-cards">
@@ -39,6 +40,12 @@
             <span class="stat-value">{{ dockerPagination.total || 0 }}</span>
           </div>
         </template>
+        <template v-else-if="currentTab === 'npm'">
+          <div class="stat-card">
+            <span class="stat-label">總套件數</span>
+            <span class="stat-value">{{ npmPagination.total || 0 }}</span>
+          </div>
+        </template>
       </div>
     </header>
 
@@ -47,6 +54,7 @@
       <button :class="{ active: currentTab === 'mcps' }" @click="currentTab = 'mcps'">MCP 管理</button>
       <button :class="{ active: currentTab === 'users' }" @click="currentTab = 'users'">使用者管理</button>
       <button :class="{ active: currentTab === 'docker' }" @click="currentTab = 'docker'">容器管理</button>
+      <button :class="{ active: currentTab === 'npm' }" @click="currentTab = 'npm'">NPM 管理</button>
     </div>
 
     <!-- 技能管理頁面 -->
@@ -499,110 +507,200 @@
       </div>
     </div>
 
-
-    <!-- 技能編輯 Modal (略，保持原狀但可優化) -->
-    <div v-if="editingSkill" class="modal-overlay" @click.self="cancelEdit">
-      <div class="modal-card card shadow-lg">
-        <div class="modal-header">
-          <h3>編輯技能：{{ editingSkill.name }}</h3>
+    <!-- NPM 套件管理頁面 -->
+    <div v-else-if="currentTab === 'npm'" class="admin-content card">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="icon">🔍</span>
+          <input v-model="npmSearchQuery" placeholder="搜尋套件名稱或描述..." @input="debouncedFetchNpmPackages" />
         </div>
-        
-        <div class="modal-body">
-          <div class="form-group mb-4">
-            <label class="form-label">描述</label>
-            <textarea v-model="editForm.description" rows="3" class="form-input" placeholder="輸入技能描述..."></textarea>
-          </div>
-          <div class="form-group mb-4">
-            <label class="form-label">作者</label>
-            <input v-model="editForm.author" class="form-input" placeholder="作者名稱" />
-          </div>
-          <div class="form-group mb-4">
-            <label class="form-label">標籤 (以逗號分隔)</label>
-            <input v-model="editForm.tagsString" class="form-input" placeholder="例如: web, search, ai" />
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn-ghost" @click="cancelEdit">取消</button>
-          <button class="btn-primary" @click="saveEdit" :disabled="saving">
-            {{ saving ? '儲存中...' : '儲存修改' }}
-          </button>
+        <div class="toolbar-actions">
+          <button class="btn-primary" @click="createNpmPackage">+ 新增套件</button>
+          <button class="btn-ghost" @click="fetchNpmPackages(1)">刷新清單</button>
         </div>
       </div>
+
+      <div class="table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>套件名稱</th>
+              <th>描述</th>
+              <th>建立時間</th>
+              <th>更新時間</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="pkg in npmPackages" :key="pkg.id">
+              <td><strong>{{ pkg.name }}</strong></td>
+              <td>{{ pkg.description || '無描述' }}</td>
+              <td>{{ new Date(pkg.created_at).toLocaleDateString() }}</td>
+              <td>{{ new Date(pkg.updated_at).toLocaleDateString() }}</td>
+              <td class="actions">
+                <button class="btn-action edit" @click="editNpmPackage(pkg)">編輯</button>
+                <button class="btn-action delete" @click="deleteNpmPackage(pkg)">刪除</button>
+              </td>
+            </tr>
+            <tr v-if="npmPackages.length === 0" class="empty-row">
+              <td colspan="5">尚無任何 NPM 套件資料</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- NPM 套件分頁 -->
+      <div class="pagination" v-if="npmPagination.pages > 1">
+        <button :disabled="npmPagination.page === 1" @click="fetchNpmPackages(npmPagination.page - 1)">上一頁</button>
+        <span class="page-info">第 {{ npmPagination.page }} / {{ npmPagination.pages }} 頁 (共 {{ npmPagination.total }} 筆)</span>
+        <button :disabled="npmPagination.page === npmPagination.pages" @click="fetchNpmPackages(npmPagination.page + 1)">下一頁</button>
+      </div>
     </div>
+
+
+    <!-- 技能編輯 Modal -->
+    <Teleport to="body">
+      <div v-if="editingSkill" class="modal-overlay" @click.self="cancelEdit">
+        <div class="modal-card card shadow-lg">
+          <div class="modal-header">
+            <h3>編輯技能：{{ editingSkill.name }}</h3>
+          </div>
+          
+          <div class="modal-body">
+            <div class="form-group mb-4">
+              <label class="form-label">描述</label>
+              <textarea v-model="editForm.description" rows="3" class="form-input" placeholder="輸入技能描述..."></textarea>
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">作者</label>
+              <input v-model="editForm.author" class="form-input" placeholder="作者名稱" />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">標籤 (以逗號分隔)</label>
+              <input v-model="editForm.tagsString" class="form-input" placeholder="例如: web, search, ai" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-ghost" @click="cancelEdit">取消</button>
+            <button class="btn-primary" @click="saveEdit" :disabled="saving">
+              {{ saving ? '儲存中...' : '儲存修改' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
 
     <!-- 使用者編輯/新增 Modal -->
-    <div v-if="editingUser || isCreatingUser" class="modal-overlay" @click.self="cancelEditUser">
-      <div class="modal-card card shadow-lg">
-        <div class="modal-header">
-          <h3>{{ isCreatingUser ? '新增使用者' : '編輯使用者：' + editingUser.username }}</h3>
-        </div>
-        
-        <div class="modal-body">
-          <div class="form-group mb-4">
-            <label class="form-label">使用者名稱</label>
-            <input v-model="userForm.username" class="form-input" placeholder="例如: john_doe" />
+    <Teleport to="body">
+      <div v-if="editingUser || isCreatingUser" class="modal-overlay" @click.self="cancelEditUser">
+        <div class="modal-card card shadow-lg">
+          <div class="modal-header">
+            <h3>{{ isCreatingUser ? '新增使用者' : '編輯使用者：' + editingUser.username }}</h3>
           </div>
-          <div class="form-group mb-4">
-            <label class="form-label">Email 地址</label>
-            <input v-model="userForm.email" class="form-input" placeholder="例如: john@example.com" />
-          </div>
-          <div class="form-group mb-4">
-            <label class="form-label">系統角色</label>
-            <select v-model="userForm.role" class="custom-select">
-              <option value="admin">Admin (管理員 - 全域權限)</option>
-              <option value="maintainer">Maintainer (開發者 - 可發布與更新)</option>
-              <option value="user">User (一般用戶 - 僅限讀取)</option>
-            </select>
-          </div>
-          <div class="form-group mb-4">
-            <label class="form-label">具體權限點</label>
-            <div class="permission-grid">
-              <label v-for="p in ALL_PERMISSIONS" :key="p" class="checkbox-item">
-                <input type="checkbox" :value="p" v-model="userForm.permissions" />
-                <span>{{ p }}</span>
-              </label>
+          
+          <div class="modal-body">
+            <div class="form-group mb-4">
+              <label class="form-label">使用者名稱</label>
+              <input v-model="userForm.username" class="form-input" placeholder="例如: john_doe" />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">Email 地址</label>
+              <input v-model="userForm.email" class="form-input" placeholder="例如: john@example.com" />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">密碼 {{ isCreatingUser ? '(必填)' : '(留空則不修改)' }}</label>
+              <input v-model="userForm.password" type="password" class="form-input" placeholder="輸入密碼..." />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">系統角色</label>
+              <select v-model="userForm.role" class="custom-select">
+                <option value="admin">Admin (管理員 - 全域權限)</option>
+                <option value="maintainer">Maintainer (開發者 - 可發布與更新)</option>
+                <option value="user">User (一般用戶 - 僅限讀取)</option>
+              </select>
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">具體權限點</label>
+              <div class="permission-grid">
+                <label v-for="p in ALL_PERMISSIONS" :key="p" class="checkbox-item">
+                  <input type="checkbox" :value="p" v-model="userForm.permissions" />
+                  <span>{{ p }}</span>
+                </label>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="modal-footer">
-          <button class="btn-ghost" @click="cancelEditUser">取消</button>
-          <button class="btn-primary" @click="saveUserEdit" :disabled="saving">
-            {{ saving ? '處理中...' : (isCreatingUser ? '確認建立' : '確認修改') }}
-          </button>
+          <div class="modal-footer">
+            <button class="btn-ghost" @click="cancelEditUser">取消</button>
+            <button class="btn-primary" @click="saveUserEdit" :disabled="saving">
+              {{ saving ? '處理中...' : (isCreatingUser ? '確認建立' : '確認修改') }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- Docker Repo 編輯/新增 Modal -->
-    <div v-if="editingDockerRepo || isCreatingDockerRepo" class="modal-overlay" @click.self="cancelEditDockerRepo">
-      <div class="modal-card card shadow-lg">
-        <div class="modal-header">
-          <h3>{{ isCreatingDockerRepo ? '新增 Docker 倉庫' : '編輯倉庫：' + editingDockerRepo.name }}</h3>
-        </div>
-        
-        <div class="modal-body">
-          <div class="form-group mb-4">
-            <label class="form-label">倉庫名稱 (Repository Name)</label>
-            <input v-model="dockerRepoForm.name" class="form-input" placeholder="例如: my-team/backend" :disabled="!isCreatingDockerRepo" />
-            <span v-if="isCreatingDockerRepo" class="text-xs text-muted" style="margin-top:0.3rem">建立後不可修改。這必須與你執行 `docker push` 時的名稱一致。</span>
+    <Teleport to="body">
+      <div v-if="editingDockerRepo || isCreatingDockerRepo" class="modal-overlay" @click.self="cancelEditDockerRepo">
+        <div class="modal-card card shadow-lg">
+          <div class="modal-header">
+            <h3>{{ isCreatingDockerRepo ? '新增 Docker 倉庫' : '編輯倉庫：' + editingDockerRepo.name }}</h3>
           </div>
-          <div class="form-group mb-4">
-            <label class="form-label">倉庫描述 (Description)</label>
-            <textarea v-model="dockerRepoForm.description" rows="3" class="form-input" placeholder="輸入倉庫的功能或用途..."></textarea>
+          
+          <div class="modal-body">
+            <div class="form-group mb-4">
+              <label class="form-label">倉庫名稱 (Repository Name)</label>
+              <input v-model="dockerRepoForm.name" class="form-input" placeholder="例如: my-team/backend" :disabled="!isCreatingDockerRepo" />
+              <span v-if="isCreatingDockerRepo" class="text-xs text-muted" style="margin-top:0.3rem">建立後不可修改。這必須與你執行 `docker push` 時的名稱一致。</span>
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">倉庫描述 (Description)</label>
+              <textarea v-model="dockerRepoForm.description" rows="3" class="form-input" placeholder="輸入倉庫的功能或用途..."></textarea>
+            </div>
           </div>
-        </div>
 
-        <div class="modal-footer">
-          <button class="btn-ghost" @click="cancelEditDockerRepo">取消</button>
-          <button class="btn-primary" @click="saveDockerRepoEdit" :disabled="saving">
-            {{ saving ? '處理中...' : (isCreatingDockerRepo ? '確認建立' : '確認修改') }}
-          </button>
+          <div class="modal-footer">
+            <button class="btn-ghost" @click="cancelEditDockerRepo">取消</button>
+            <button class="btn-primary" @click="saveDockerRepoEdit" :disabled="saving">
+              {{ saving ? '處理中...' : (isCreatingDockerRepo ? '確認建立' : '確認修改') }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
+
+    <!-- NPM 倉庫 編輯/新增 Modal -->
+    <Teleport to="body">
+      <div v-if="editingNpmPackage || isCreatingNpmPackage" class="modal-overlay" @click.self="cancelEditNpmPackage">
+        <div class="modal-card card shadow-lg">
+          <div class="modal-header">
+            <h3>{{ isCreatingNpmPackage ? '新增 NPM 套件' : '編輯套件：' + editingNpmPackage.name }}</h3>
+          </div>
+          
+          <div class="modal-body">
+            <div class="form-group mb-4">
+              <label class="form-label">套件名稱 (Package Name)</label>
+              <input v-model="npmPackageForm.name" class="form-input" placeholder="例如: my-team/backend" :disabled="!isCreatingNpmPackage" />
+              <span v-if="isCreatingNpmPackage" class="text-xs text-muted" style="margin-top:0.3rem">建立後不可修改。這必須與你執行 `npm publish` 時的名稱一致。</span>
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">套件描述 (Description)</label>
+              <textarea v-model="npmPackageForm.description" rows="3" class="form-input" placeholder="輸入套件的功能或用途..."></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-ghost" @click="cancelEditNpmPackage">取消</button>
+            <button class="btn-primary" @click="saveNpmPackageEdit" :disabled="saving">
+              {{ saving ? '處理中...' : (isCreatingNpmPackage ? '確認建立' : '確認修改') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -630,6 +728,7 @@ const dockerPerPage = ref(10)
 const skillPagination = reactive({ page: 1, total: 0, pages: 1 })
 const userPagination = reactive({ page: 1, total: 0, pages: 1 })
 const dockerPagination = reactive({ page: 1, total: 0, pages: 1 })
+const npmPagination = reactive({ page: 1, total: 0, pages: 1 })
 
 // Docker 倉庫狀態
 const dockerRepos = ref([])
@@ -637,6 +736,14 @@ const dockerSearchQuery = ref('')
 const editingDockerRepo = ref(null)
 const isCreatingDockerRepo = ref(false)
 const dockerRepoForm = reactive({ name: '', description: '' })
+
+// NPM 套件狀態
+const npmPackages = ref([])
+const npmSearchQuery = ref('')
+const editingNpmPackage = ref(null)
+const isCreatingNpmPackage = ref(false)
+const npmPackageForm = reactive({ name: '', description: '' })
+const npmPerPage = ref(10)
 
 // ── 分類常數（與後端 CATEGORIES 同步） ──
 const CATEGORIES = [
@@ -686,7 +793,7 @@ const editForm = ref({ description: '', author: '', tagsString: '' })
 
 const editingUser = ref(null)
 const isCreatingUser = ref(false)
-const userForm = reactive({ username: '', email: '', role: 'user', permissions: [] })
+const userForm = reactive({ username: '', email: '', password: '', role: 'user', permissions: [] })
 const ALL_PERMISSIONS = ['skill:create', 'skill:update', 'skill:delete', 'admin:access']
 
 const saving = ref(false)
@@ -743,6 +850,23 @@ async function fetchDockerRepos(page = 1) {
     }
   } catch (e) {
     console.error('Failed to fetch docker repos', e)
+  }
+}
+
+async function fetchNpmPackages(page = 1) {
+  npmPagination.page = page
+  try {
+    const res = await fetch(`/api/admin/npm-packages?q=${npmSearchQuery.value}&page=${page}&per_page=${npmPerPage.value}`, {
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+        const data = await res.json()
+        npmPackages.value = data.packages || []
+        npmPagination.total = data.total
+        npmPagination.pages = data.pages
+    }
+  } catch (e) {
+    console.error('Failed to fetch npm packages', e)
   }
 }
 
@@ -872,6 +996,12 @@ function debouncedFetchDockerRepos() {
   dockerTimeout = setTimeout(() => fetchDockerRepos(1), 300)
 }
 
+let npmTimeout = null
+function debouncedFetchNpmPackages() {
+  clearTimeout(npmTimeout)
+  npmTimeout = setTimeout(() => fetchNpmPackages(1), 300)
+}
+
 // 技能操作
 function editSkill(skill) {
   editingSkill.value = skill
@@ -947,10 +1077,10 @@ async function confirmDeleteMcp(mcp) {
 
 // 使用者操作
 function createUser() {
-  isCreatingUser.ref = true
   editingUser.value = null
   userForm.username = ''
   userForm.email = ''
+  userForm.password = ''
   userForm.role = 'user'
   userForm.permissions = []
   isCreatingUser.value = true
@@ -961,6 +1091,7 @@ function editUser(user) {
   editingUser.value = user
   userForm.username = user.username
   userForm.email = user.email
+  userForm.password = ''
   userForm.role = user.role
   userForm.permissions = [...(user.permissions || [])]
 }
@@ -977,13 +1108,19 @@ async function saveUserEdit() {
     const url = isNew ? '/api/admin/users' : `/api/admin/users/${editingUser.value.id}`
     const method = isNew ? 'POST' : 'PATCH'
     
+    const payload = { ...userForm }
+    // 如果是編輯模式且密碼為空，則移除密碼欄位以防後端報錯或誤改
+    if (!isNew && !payload.password) {
+      delete payload.password
+    }
+
     const res = await fetch(url, {
       method: method,
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authStore.token}`
       },
-      body: JSON.stringify(userForm)
+      body: JSON.stringify(payload)
     })
     
     if (res.ok) {
@@ -1079,6 +1216,72 @@ async function deleteDockerRepo(repo) {
   }
 }
 
+// NPM Repo 操作
+function createNpmPackage() {
+  isCreatingNpmPackage.value = true
+  editingNpmPackage.value = null
+  npmPackageForm.name = ''
+  npmPackageForm.description = ''
+}
+
+function editNpmPackage(pkg) {
+  isCreatingNpmPackage.value = false
+  editingNpmPackage.value = pkg
+  npmPackageForm.name = pkg.name
+  npmPackageForm.description = pkg.description || ''
+}
+
+function cancelEditNpmPackage() { 
+  editingNpmPackage.value = null
+  isCreatingNpmPackage.value = false
+}
+
+async function saveNpmPackageEdit() {
+  saving.value = true
+  try {
+    const isNew = isCreatingNpmPackage.value
+    const url = isNew ? '/api/admin/npm-packages' : `/api/admin/npm-packages/${editingNpmPackage.value.id}`
+    const method = isNew ? 'POST' : 'PATCH'
+    
+    // 如果是更新，把不必要的 name 拿掉（以防後端報錯，雖然設定檔沒檢查也無妨）
+    const payload = isNew ? { name: npmPackageForm.name, description: npmPackageForm.description } : { description: npmPackageForm.description }
+
+    const res = await fetch(url, {
+      method: method,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify(payload)
+    })
+    
+    if (res.ok) {
+      await fetchNpmPackages(npmPagination.page)
+      cancelEditNpmPackage()
+    } else {
+      const err = await res.json()
+      alert(err.message || '操作失敗')
+    }
+  } catch (e) {
+    alert('操作失敗')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function deleteNpmPackage(pkg) {
+  if (!confirm(`確定要刪除 NPM 套件 "${pkg.name}" 嗎？`)) return
+  try {
+    const res = await fetch(`/api/admin/npm-packages/${pkg.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) fetchNpmPackages(npmPagination.page)
+  } catch (e) {
+    alert('刪除失敗')
+  }
+}
+
 // ── 批次刪除 ──────────────────────────────────────────────────────
 const selectedSkills = ref(new Set())
 const selectedMcps = ref(new Set())
@@ -1163,12 +1366,14 @@ onMounted(() => {
   else if (currentTab.value === 'users') fetchUsers(1)
   else if (currentTab.value === 'mcps') fetchMcps(1)
   else if (currentTab.value === 'docker') fetchDockerRepos(1)
+  else if (currentTab.value === 'npm') fetchNpmPackages(1)
 })
 
 watch(currentTab, (newTab) => {
   if (newTab === 'users') fetchUsers(1)
   else if (newTab === 'mcps') fetchMcps(1)
   else if (newTab === 'docker') fetchDockerRepos(1)
+  else if (newTab === 'npm') fetchNpmPackages(1)
   else fetchData(1)
 })
 </script>
@@ -1343,7 +1548,7 @@ watch(currentTab, (newTab) => {
 .modal-card { width: 100%; max-width: 500px; padding: 2rem; border-radius: 16px; background: var(--bg-secondary); border: 1px solid var(--border); }
 .modal-header { margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem; }
 .modal-header h3 { font-size: 1.25rem; font-weight: 700; color: #fff; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); padding: 1rem; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(13, 17, 23, 0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(8px); padding: 1rem; overflow-y: auto; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.8rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); }
 
 .form-group { display: flex; flex-direction: column; gap: 0.5rem; }

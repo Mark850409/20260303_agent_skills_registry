@@ -45,6 +45,16 @@
               <button @click="copyToClipboard(`docker push ${registryInfo?.external_url || 'localhost:5005'}/${repo}:latest`)" class="btn-copy">複製</button>
             </div>
           </div>
+          <div class="usage-step mt-4">
+            <h4>3. 刪除遠端標籤</h4>
+            <div class="cmd-row">
+              <code>docker rmi {{ registryInfo?.external_url || 'localhost:5005' }}/{{ repo }}:&lt;tag&gt;</code>
+              <button @click="copyToClipboard(`docker rmi ${registryInfo?.external_url || 'localhost:5005'}/${repo}:latest`)" class="btn-copy">複製</button>
+            </div>
+            <p style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.5rem">
+              若要徹底刪除伺服器儲存體空間，請聯絡管理員執行 GC 或透過背景管理介面刪除 Manifest。
+            </p>
+          </div>
         </div>
       </section>
 
@@ -55,6 +65,11 @@
         </div>
         
         <div class="tags-container">
+          <div class="table-actions" v-if="authStore.isAuthenticated && selectedTags.length > 0" style="padding: 1rem; border-bottom: 1px solid var(--border-subtle); background: rgba(239, 68, 68, 0.05);">
+            <span style="margin-right: 1rem; font-size: 0.95rem;">已選擇 {{ selectedTags.length }} 項</span>
+            <button @click="deleteSelected" class="btn-danger">批次刪除</button>
+          </div>
+
           <div v-if="loading" class="loading-state">
             <div class="spinner"></div>
             <p>載入標籤中...</p>
@@ -63,7 +78,7 @@
           <table v-else-if="tags.length > 0" class="tags-table">
             <thead>
               <tr>
-                <th style="width: 40px; text-align: center;"><input type="checkbox" /></th>
+                 <th v-if="authStore.isAuthenticated" style="width: 40px; text-align: center;"><input type="checkbox" v-model="selectAll" /></th>
                 <th>版本標籤 (Tag)</th>
                 <th>Artifact Digest</th>
                 <th style="text-align: center;">已簽署</th>
@@ -71,12 +86,12 @@
                 <th>安全性漏洞</th>
                 <th>SBOM</th>
                 <th>最後推送時間</th>
-                <th class="text-right">操作</th>
+                 <th v-if="authStore.isAuthenticated" class="text-right">操作</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="t in tags" :key="t.tag" class="tag-row">
-                <td style="text-align: center;"><input type="checkbox" /></td>
+                 <td v-if="authStore.isAuthenticated" style="text-align: center;"><input type="checkbox" :value="t.tag" v-model="selectedTags" /></td>
                 <td>
                   <span class="tag-badge">{{ t.tag }}</span>
                 </td>
@@ -96,7 +111,7 @@
                 <td>
                   <div class="time-cell">{{ formatDate(t.created_at) }}</div>
                 </td>
-                <td class="text-right">
+                 <td v-if="authStore.isAuthenticated" class="text-right">
                   <button @click="deleteTag(t.tag)" class="btn-danger">刪除</button>
                 </td>
               </tr>
@@ -113,21 +128,37 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
+import { useAuthStore } from '@/store/auth'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const repo = route.params.repo
 const tags = ref([])
+const selectedTags = ref([])
 const registryInfo = ref(null)
 const repoDetails = ref(null)
 const loading = ref(true)
 
+const selectAll = computed({
+  get: () => tags.value.length > 0 && selectedTags.value.length === tags.value.length,
+  set: (val) => {
+    if (val) {
+      selectedTags.value = tags.value.map(t => t.tag)
+    } else {
+      selectedTags.value = []
+    }
+  }
+})
+
 const fetchTags = async () => {
     loading.value = true
     try {
-        const response = await axios.get(`/api/docker/${repo}/tags/details`)
+        const response = await axios.get(`/api/docker/${repo}/tags/details`, {
+            headers: { 'Authorization': `Bearer ${authStore.token}` }
+        })
         tags.value = response.data.tags || []
     } catch (error) {
         console.error('Failed to fetch tags:', error)
@@ -147,12 +178,14 @@ const fetchInfo = async () => {
 
 const fetchRepoDetails = async () => {
     try {
+        if (!authStore.token) return // Skip admin fetch if not logged in
+        
         // Because /api/docker/{repo} doesn't expose description right now,
         // we try to fetch it from the admin API. In a real environment, 
         // there should be a public endpoint to get repository metadata.
         // We'll use the admin API as a workaround for now.
         const response = await axios.get(`/api/admin/docker-repos?q=${repo}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+            headers: { 'Authorization': `Bearer ${authStore.token}` }
         }).catch(() => null)
         
         if (response && response.data && response.data.repositories) {
@@ -171,7 +204,9 @@ const deleteTag = async (tag) => {
     
     try {
         // First get the digest
-        const manifestRes = await axios.get(`/api/docker/${repo}/manifest/${tag}`)
+        const manifestRes = await axios.get(`/api/docker/${repo}/manifest/${tag}`, {
+            headers: { 'Authorization': `Bearer ${authStore.token}` }
+        })
         const digest = manifestRes.data.digest
         
         if (!digest) {
@@ -179,13 +214,56 @@ const deleteTag = async (tag) => {
             return
         }
         
-        await axios.delete(`/api/docker/${repo}/manifest/${digest}`)
+        await axios.delete(`/api/docker/${repo}/manifest/${digest}`, {
+            headers: { 'Authorization': `Bearer ${authStore.token}` }
+        })
         alert('刪除成功')
+        // Remove from selection if exists
+        selectedTags.value = selectedTags.value.filter(t => t !== tag)
         fetchTags()
     } catch (error) {
         console.error('Failed to delete tag:', error)
         alert('刪除失敗: ' + (error.response?.data?.error || error.message))
     }
+}
+
+const deleteSelected = async () => {
+    if (selectedTags.value.length === 0) return
+    if (!confirm(`確定要刪除選取的 ${selectedTags.value.length} 個標籤嗎？`)) return
+    
+    let successCount = 0
+    let failCount = 0
+    let lastError = null
+    
+    for (const tag of selectedTags.value) {
+        try {
+            const manifestRes = await axios.get(`/api/docker/${repo}/manifest/${tag}`, {
+                headers: { 'Authorization': `Bearer ${authStore.token}` }
+            })
+            const digest = manifestRes.data.digest
+            
+            if (digest) {
+                await axios.delete(`/api/docker/${repo}/manifest/${digest}`, {
+                    headers: { 'Authorization': `Bearer ${authStore.token}` }
+                })
+                successCount++
+            } else {
+                failCount++
+            }
+        } catch (error) {
+            console.error(`Failed to delete tag ${tag}:`, error)
+            failCount++
+            lastError = error.response?.data?.error || error.message
+        }
+    }
+    
+    if (failCount > 0) {
+        alert(`批次刪除完成：成功 ${successCount} 個，失敗 ${failCount} 個。\n最後錯誤：${lastError}`)
+    } else {
+        alert(`成功刪除 ${successCount} 個標籤`)
+    }
+    selectedTags.value = []
+    fetchTags()
 }
 
 const copyToClipboard = (text) => {

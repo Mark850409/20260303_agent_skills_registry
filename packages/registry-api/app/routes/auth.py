@@ -67,40 +67,26 @@ class AuthLogin(MethodView):
     @auth_blp.arguments(AuthLoginSchema)
     @auth_blp.response(200, AuthTokenSchema)
     def post(self, data):
-        """取得 API Token（開發模式：簡單用 username 建立 token）"""
+        """取得 API Token (身分驗證模式：帳號密碼比對)"""
         username = data.get("username", "").strip()
-        email = data.get("email", "").strip()
+        password = data.get("password", "").strip()
+
+        from werkzeug.security import check_password_hash
 
         user = User.query.filter_by(username=username).first()
-        if not user:
-            is_admin = (username == "admin")
-            user = User(
-                username=username, 
-                email=email,
-                role="admin" if is_admin else "maintainer",
-                permissions=["*:*"] if is_admin else ["skill:create", "skill:update"]
-            )
-            db.session.add(user)
-        else:
-            is_admin = (username == "admin")
-            if is_admin:
-                user.role = "admin"
-                user.permissions = ["*:*"]
-            elif not user.permissions and user.role != "admin":
-                # 向下兼容：替尚未有權限的現有用戶補上發布權限
-                user.role = "maintainer"
-                user.permissions = ["skill:create", "skill:update"]
+        
+        # 安全性增強：必須存在使用者且密碼正確
+        if not user or not user.password_hash or not check_password_hash(user.password_hash, password):
+            abort(401, message="Invalid username or password")
+
+        # Admin role bypass (可選，確保 admin 永遠有權限)
+        if username == "admin" and user.role != "admin":
+            user.role = "admin"
+            user.permissions = ["*:*"]
 
         # Generate opaque API token
-        import os
         raw_token = secrets.token_urlsafe(32)
         
-        # 優先使用環境變數中的 Token (開發模式：確保與 CLI .env 一致)
-        if username == "admin":
-            env_token = os.environ.get("AGENTSKILLS_TOKEN")
-            if env_token:
-                raw_token = env_token
-
         user.api_token_hash = _hash_token(raw_token)
         db.session.commit()
 
