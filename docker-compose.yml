@@ -1,8 +1,6 @@
 services:
   api:
-    build:
-      context: ./packages/registry-api
-      dockerfile: Dockerfile
+    build: packages/registry-api
     ports:
       - "5006:5006"
     environment:
@@ -62,9 +60,7 @@ services:
       - agentskills-network
 
   ui:
-    build:
-      context: ./packages/registry-ui
-      dockerfile: Dockerfile
+    build: packages/registry-ui
     ports:
       - "5173:5173"
     environment:
