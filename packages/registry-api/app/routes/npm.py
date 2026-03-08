@@ -103,8 +103,11 @@ def get_package_info(pkg_name):
 
 @npm_bp.route('/info', methods=['GET'])
 def get_info():
+    url = NPM_EXTERNAL_URL
+    if not url.startswith('http://') and not url.startswith('https://'):
+        url = 'http://' + url
     return jsonify({
-        "external_url": NPM_EXTERNAL_URL,
+        "external_url": url,
         "username": REGISTRY_USER
     })
 

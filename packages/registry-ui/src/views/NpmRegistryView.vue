@@ -35,7 +35,7 @@
               <p>😶 尚無套件</p>
               <p class="empty-sub">目前 NPM Registry 無庫存套件。</p>
               <div class="cmd-box">
-                <code>npm set registry {{ registryInfo?.external_url || 'http://localhost:5005/npm/' }}</code>
+                <code>npm set registry {{ registryInfo?.external_url ? (registryInfo.external_url.startsWith('http') ? registryInfo.external_url : 'http://' + registryInfo.external_url) : 'http://localhost:5005/npm/' }}</code>
                 <code>npm login</code>
                 <code>npm publish</code>
               </div>

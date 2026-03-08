@@ -17,5 +17,8 @@
         "install_deps.js",
         "requirements.txt",
         "setup.py"
-    ]
+    ],
+    "dependencies": {
+        "agentskills": "^1.0.0"
+    }
 }

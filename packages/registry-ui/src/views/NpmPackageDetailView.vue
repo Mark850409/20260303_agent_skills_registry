@@ -136,7 +136,14 @@ const fetchInfo = async () => {
     try {
         const infoRes = await axios.get('/api/npm/info')
         if (infoRes.data.external_url) {
-            registryUrl.value = infoRes.data.external_url
+            let url = infoRes.data.external_url
+            if (!url.startsWith('http')) {
+                url = 'http://' + url
+            }
+            if (!url.endsWith('/')) {
+                url = url + '/'
+            }
+            registryUrl.value = url
         }
 
         const response = await axios.get(`/api/npm/${encodeURIComponent(pkgName)}/info`)
