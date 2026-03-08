@@ -8,6 +8,8 @@ services:
     environment:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://registry_user:registry_password@db:5432/registry_db
+      - NPM_EXTERNAL_URL=zanehsu.myqnapcloud.com:5007/npm
+      - REGISTRY_EXTERNAL_URL=zanehsu.myqnapcloud.com:5007
     volumes:
       - ./packages/registry-api:/app
       - ./packages/cli:/cli
