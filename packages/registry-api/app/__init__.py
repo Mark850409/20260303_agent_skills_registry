@@ -43,10 +43,13 @@ def create_app(config_name="default"):
     from app.routes.admin import admin_blp
     from app.routes.mcps import mcps_blp
 
+    from app.routes.docker import docker_bp
+    
     api.register_blueprint(skills_blp)
     api.register_blueprint(auth_blp)
     api.register_blueprint(admin_blp)
     api.register_blueprint(mcps_blp)
+    app.register_blueprint(docker_bp, url_prefix='/api/docker')
 
     # Health check
     @app.route("/api/health")

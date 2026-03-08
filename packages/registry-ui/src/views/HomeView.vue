@@ -5,11 +5,11 @@
       <div class="hero-inner">
         <div class="hero-badge">開源 · 免費 · 社群驅動</div>
         <h1 class="hero-title">
-          探索 AI Agent<br />
-          <span class="hero-accent">Skills Registry</span>
+          探索 AI Skills & Apps<br />
+          <span class="hero-accent">Registry</span>
         </h1>
         <p class="hero-sub">
-          發布、搜尋並安裝社群貢獻的 Agent Skills。<br />
+          發布、搜尋並安裝社群貢獻的 AI 工具與應用。<br />
           支援 Antigravity、Claude Code、Cursor、Codex 等多種 AI 工具。
         </p>
 

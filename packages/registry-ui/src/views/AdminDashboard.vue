@@ -3,17 +3,42 @@
     <header class="admin-header">
       <div class="header-content">
         <h1>管理後台</h1>
-        <p class="subtitle">{{ currentTab === 'skills' ? 'Registry 數據營運與管控中心' : '系統帳號與權限核發中心' }}</p>
+        <p class="subtitle">
+          <template v-if="currentTab === 'skills'">Registry 數據營運與管控中心</template>
+          <template v-else-if="currentTab === 'mcps'">MCP 服務註冊與分析中心</template>
+          <template v-else-if="currentTab === 'users'">系統帳號與權限核發中心</template>
+          <template v-else-if="currentTab === 'docker'">Docker 容器映像管理與儲存庫</template>
+        </p>
       </div>
-      <div class="stats-cards" v-if="currentTab === 'skills'">
-        <div class="stat-card">
-          <span class="stat-label">總技能數</span>
-          <span class="stat-value">{{ stats.total_skills || 0 }}</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">累積下載</span>
-          <span class="stat-value">{{ stats.total_downloads || 0 }}</span>
-        </div>
+      <div class="stats-cards">
+        <template v-if="currentTab === 'skills'">
+          <div class="stat-card">
+            <span class="stat-label">總技能數</span>
+            <span class="stat-value">{{ stats.total_skills || 0 }}</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">累積下載</span>
+            <span class="stat-value">{{ stats.total_downloads || 0 }}</span>
+          </div>
+        </template>
+        <template v-else-if="currentTab === 'mcps'">
+          <div class="stat-card">
+            <span class="stat-label">總 MCP 數</span>
+            <span class="stat-value">{{ mcpPagination.total || 0 }}</span>
+          </div>
+        </template>
+        <template v-else-if="currentTab === 'users'">
+          <div class="stat-card">
+            <span class="stat-label">使用者總數</span>
+            <span class="stat-value">{{ userPagination.total || 0 }}</span>
+          </div>
+        </template>
+        <template v-else-if="currentTab === 'docker'">
+          <div class="stat-card">
+            <span class="stat-label">總倉庫數</span>
+            <span class="stat-value">{{ dockerPagination.total || 0 }}</span>
+          </div>
+        </template>
       </div>
     </header>
 
@@ -21,6 +46,7 @@
       <button :class="{ active: currentTab === 'skills' }" @click="currentTab = 'skills'">技能管理</button>
       <button :class="{ active: currentTab === 'mcps' }" @click="currentTab = 'mcps'">MCP 管理</button>
       <button :class="{ active: currentTab === 'users' }" @click="currentTab = 'users'">使用者管理</button>
+      <button :class="{ active: currentTab === 'docker' }" @click="currentTab = 'docker'">容器管理</button>
     </div>
 
     <!-- 技能管理頁面 -->
@@ -423,6 +449,57 @@
       </div>
     </div>
 
+    <!-- 容器管理頁面 -->
+    <div v-else-if="currentTab === 'docker'" class="admin-content card">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="icon">🔍</span>
+          <input v-model="dockerSearchQuery" placeholder="搜尋倉庫名稱或描述..." @input="debouncedFetchDockerRepos" />
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn-primary" @click="createDockerRepo">+ 新增倉庫</button>
+          <button class="btn-ghost" @click="fetchDockerRepos(1)">刷新清單</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>倉庫名稱</th>
+              <th>描述</th>
+              <th>建立時間</th>
+              <th>更新時間</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="repo in dockerRepos" :key="repo.id">
+              <td><strong>{{ repo.name }}</strong></td>
+              <td>{{ repo.description || '無描述' }}</td>
+              <td>{{ new Date(repo.created_at).toLocaleDateString() }}</td>
+              <td>{{ new Date(repo.updated_at).toLocaleDateString() }}</td>
+              <td class="actions">
+                <button class="btn-action edit" @click="editDockerRepo(repo)">編輯</button>
+                <button class="btn-action delete" @click="deleteDockerRepo(repo)">刪除</button>
+              </td>
+            </tr>
+            <tr v-if="dockerRepos.length === 0" class="empty-row">
+              <td colspan="5">尚無任何 Docker 倉庫資料</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Docker 倉庫分頁 -->
+      <div class="pagination" v-if="dockerPagination.pages > 1">
+        <button :disabled="dockerPagination.page === 1" @click="fetchDockerRepos(dockerPagination.page - 1)">上一頁</button>
+        <span class="page-info">第 {{ dockerPagination.page }} / {{ dockerPagination.pages }} 頁 (共 {{ dockerPagination.total }} 筆)</span>
+        <button :disabled="dockerPagination.page === dockerPagination.pages" @click="fetchDockerRepos(dockerPagination.page + 1)">下一頁</button>
+      </div>
+    </div>
+
+
     <!-- 技能編輯 Modal (略，保持原狀但可優化) -->
     <div v-if="editingSkill" class="modal-overlay" @click.self="cancelEdit">
       <div class="modal-card card shadow-lg">
@@ -498,6 +575,34 @@
         </div>
       </div>
     </div>
+
+    <!-- Docker Repo 編輯/新增 Modal -->
+    <div v-if="editingDockerRepo || isCreatingDockerRepo" class="modal-overlay" @click.self="cancelEditDockerRepo">
+      <div class="modal-card card shadow-lg">
+        <div class="modal-header">
+          <h3>{{ isCreatingDockerRepo ? '新增 Docker 倉庫' : '編輯倉庫：' + editingDockerRepo.name }}</h3>
+        </div>
+        
+        <div class="modal-body">
+          <div class="form-group mb-4">
+            <label class="form-label">倉庫名稱 (Repository Name)</label>
+            <input v-model="dockerRepoForm.name" class="form-input" placeholder="例如: my-team/backend" :disabled="!isCreatingDockerRepo" />
+            <span v-if="isCreatingDockerRepo" class="text-xs text-muted" style="margin-top:0.3rem">建立後不可修改。這必須與你執行 `docker push` 時的名稱一致。</span>
+          </div>
+          <div class="form-group mb-4">
+            <label class="form-label">倉庫描述 (Description)</label>
+            <textarea v-model="dockerRepoForm.description" rows="3" class="form-input" placeholder="輸入倉庫的功能或用途..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-ghost" @click="cancelEditDockerRepo">取消</button>
+          <button class="btn-primary" @click="saveDockerRepoEdit" :disabled="saving">
+            {{ saving ? '處理中...' : (isCreatingDockerRepo ? '確認建立' : '確認修改') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -519,10 +624,19 @@ const skillViewMode = ref('list')  // 'list' | 'grid'
 // 每頁筆數
 const skillPerPage = ref(10)
 const userPerPage = ref(15)
+const dockerPerPage = ref(10)
 
 // 分頁狀態
 const skillPagination = reactive({ page: 1, total: 0, pages: 1 })
 const userPagination = reactive({ page: 1, total: 0, pages: 1 })
+const dockerPagination = reactive({ page: 1, total: 0, pages: 1 })
+
+// Docker 倉庫狀態
+const dockerRepos = ref([])
+const dockerSearchQuery = ref('')
+const editingDockerRepo = ref(null)
+const isCreatingDockerRepo = ref(false)
+const dockerRepoForm = reactive({ name: '', description: '' })
 
 // ── 分類常數（與後端 CATEGORIES 同步） ──
 const CATEGORIES = [
@@ -612,6 +726,23 @@ async function fetchUsers(page = 1) {
     }
   } catch (e) {
     console.error('Failed to fetch users', e)
+  }
+}
+
+async function fetchDockerRepos(page = 1) {
+  dockerPagination.page = page
+  try {
+    const res = await fetch(`/api/admin/docker-repos?q=${dockerSearchQuery.value}&page=${page}&per_page=${dockerPerPage.value}`, {
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+        const data = await res.json()
+        dockerRepos.value = data.repositories || []
+        dockerPagination.total = data.total
+        dockerPagination.pages = data.pages
+    }
+  } catch (e) {
+    console.error('Failed to fetch docker repos', e)
   }
 }
 
@@ -733,6 +864,12 @@ let userTimeout = null
 function debouncedFetchUsers() {
   clearTimeout(userTimeout)
   userTimeout = setTimeout(() => fetchUsers(1), 300)
+}
+
+let dockerTimeout = null
+function debouncedFetchDockerRepos() {
+  clearTimeout(dockerTimeout)
+  dockerTimeout = setTimeout(() => fetchDockerRepos(1), 300)
 }
 
 // 技能操作
@@ -876,6 +1013,72 @@ async function deleteUser(user) {
   }
 }
 
+// Docker Repo 操作
+function createDockerRepo() {
+  isCreatingDockerRepo.value = true
+  editingDockerRepo.value = null
+  dockerRepoForm.name = ''
+  dockerRepoForm.description = ''
+}
+
+function editDockerRepo(repo) {
+  isCreatingDockerRepo.value = false
+  editingDockerRepo.value = repo
+  dockerRepoForm.name = repo.name
+  dockerRepoForm.description = repo.description || ''
+}
+
+function cancelEditDockerRepo() { 
+  editingDockerRepo.value = null
+  isCreatingDockerRepo.value = false
+}
+
+async function saveDockerRepoEdit() {
+  saving.value = true
+  try {
+    const isNew = isCreatingDockerRepo.value
+    const url = isNew ? '/api/admin/docker-repos' : `/api/admin/docker-repos/${editingDockerRepo.value.id}`
+    const method = isNew ? 'POST' : 'PATCH'
+    
+    // 如果是更新，把不必要的 name 拿掉（以防後端報錯，雖然設定檔沒檢查也無妨）
+    const payload = isNew ? { name: dockerRepoForm.name, description: dockerRepoForm.description } : { description: dockerRepoForm.description }
+
+    const res = await fetch(url, {
+      method: method,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify(payload)
+    })
+    
+    if (res.ok) {
+      await fetchDockerRepos(dockerPagination.page)
+      cancelEditDockerRepo()
+    } else {
+      const err = await res.json()
+      alert(err.message || '操作失敗')
+    }
+  } catch (e) {
+    alert('操作失敗')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function deleteDockerRepo(repo) {
+  if (!confirm(`確定要刪除 Docker 倉庫 "${repo.name}" 嗎？\n注意：這將連同 Registry 中的實際 Image 資料一併刪除，此操作不可還原。`)) return
+  try {
+    const res = await fetch(`/api/admin/docker-repos/${repo.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) fetchDockerRepos(dockerPagination.page)
+  } catch (e) {
+    alert('刪除失敗')
+  }
+}
+
 // ── 批次刪除 ──────────────────────────────────────────────────────
 const selectedSkills = ref(new Set())
 const selectedMcps = ref(new Set())
@@ -957,7 +1160,16 @@ async function batchDeleteMcps() {
 
 onMounted(() => {
   if (currentTab.value === 'skills') fetchData(1)
-  else fetchUsers(1)
+  else if (currentTab.value === 'users') fetchUsers(1)
+  else if (currentTab.value === 'mcps') fetchMcps(1)
+  else if (currentTab.value === 'docker') fetchDockerRepos(1)
+})
+
+watch(currentTab, (newTab) => {
+  if (newTab === 'users') fetchUsers(1)
+  else if (newTab === 'mcps') fetchMcps(1)
+  else if (newTab === 'docker') fetchDockerRepos(1)
+  else fetchData(1)
 })
 </script>
 

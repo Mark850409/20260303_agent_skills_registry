@@ -43,7 +43,11 @@ dist/
 # agentskills
 agentskills.lock
 .agentskills-vendor/
+.agents
 
 # Logs
 *.log
 logs/
+
+# Registry
+data

@@ -11,11 +11,40 @@ services:
     volumes:
       - ./packages/registry-api:/app
       - ./packages/cli:/cli
+      - ./data/registry:/var/lib/registry
     command: >
       sh -c "if [ -d '/cli' ]; then pip install -e /cli; fi && python wsgi.py"
+    networks:
+      - agentskills-network
+    depends_on:
+      - registry
 
+  registry:
+    image: registry:2
+    expose:
+      - "5000"
+    environment:
+      - REGISTRY_AUTH=htpasswd
+      - REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm
+      - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+    volumes:
+      - ./data/registry:/var/lib/registry
+      - ./auth:/auth
+    networks:
+      - agentskills-network
 
-    depends_on: []
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "5005:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - agentskills-network
+    depends_on:
+      - registry
+      - api
 
   ui:
     build:
@@ -28,9 +57,15 @@ services:
     volumes:
       - ./packages/registry-ui:/app
       - /app/node_modules
+    networks:
+      - agentskills-network
     depends_on:
       - api
 
+
+networks:
+  agentskills-network:
+    driver: bridge
 
 # 移除 volumes 定義，因為改用 bind mount
 

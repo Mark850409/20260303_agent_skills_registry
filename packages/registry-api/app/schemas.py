@@ -14,6 +14,7 @@ class SkillSchema(Schema):
     author = fields.String(required=True)
     license = fields.String(dump_default="MIT")
     repository = fields.String()
+    examples = fields.List(fields.String(), dump_default=list)
     tags = fields.List(fields.String(), dump_default=list)
     category = fields.String(allow_none=True)
     downloads = fields.Integer(dump_only=True)
@@ -58,6 +59,7 @@ class SkillPushSchema(Schema):
     author = fields.String(required=True)
     license = fields.String(load_default="MIT")
     repository = fields.String()
+    examples = fields.List(fields.String(), load_default=list)
     tags = fields.List(fields.String(), load_default=list)
     category = fields.String(allow_none=True, load_default=None)
     skill_md = fields.String(required=True)
@@ -108,6 +110,7 @@ class SkillUpdateSchema(Schema):
     author = fields.String()
     license = fields.String()
     repository = fields.String()
+    examples = fields.List(fields.String())
     tags = fields.List(fields.String())
     category = fields.String(allow_none=True)
 
@@ -200,5 +203,37 @@ class MCPUpdateSchema(Schema):
     transport     = fields.String()
     category      = fields.String(allow_none=True)
     tags          = fields.List(fields.String())
-    tools         = fields.List(fields.Dict())
     local_config  = fields.List(fields.Dict())
+
+# ── Docker Repository Schemas ──────────────────────────────────────
+
+class DockerRepositorySchema(Schema):
+    id = fields.Integer(dump_only=True)
+    name = fields.String(required=True)
+    description = fields.String(allow_none=True)
+    owner_id = fields.Integer(dump_only=True)
+    created_at = fields.String(dump_only=True)
+    updated_at = fields.String(dump_only=True)
+
+
+class DockerRepositoryQuerySchema(Schema):
+    q = fields.String(load_default="")
+    page = fields.Integer(load_default=1)
+    per_page = fields.Integer(load_default=10)
+
+
+class DockerRepositoryListResponseSchema(Schema):
+    repositories = fields.List(fields.Nested(DockerRepositorySchema))
+    total = fields.Integer()
+    page = fields.Integer()
+    pages = fields.Integer()
+    per_page = fields.Integer()
+
+
+class DockerRepositoryCreateSchema(Schema):
+    name = fields.String(required=True)
+    description = fields.String(allow_none=True)
+
+
+class DockerRepositoryUpdateSchema(Schema):
+    description = fields.String(allow_none=True)

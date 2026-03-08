@@ -2,9 +2,9 @@
   <div class="login-page fade-up">
     <div class="login-card card">
       <div class="login-header">
-        <span class="icon">🔐</span>
-        <h3>帳號登入</h3>
-        <p class="subtitle">進入 AgentSkills 管理後台</p>
+        <div class="logo-icon">🧠</div>
+        <h2>管理員登入</h2>
+        <p class="subtitle">進入 AI Skills & Apps 管理後台</p>
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">

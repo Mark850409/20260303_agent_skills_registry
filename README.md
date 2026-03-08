@@ -1,6 +1,6 @@
-# Agent Skills Registry 🧠
+# AI Skills & Apps Registry 🧠
 
-> 開源的 AI Agent Skills 登錄平台，讓開發者發布、搜尋、安裝與分享 Agent Skills。
+> 開源的 AI 技能與應用登錄平台，讓開發者發布、搜尋、安裝與分享 AI 工具與應用。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
@@ -30,20 +30,20 @@ pip install agentskills
 
 ### CLI 指令
 
-| 指令 | 說明 |
-|------|------|
-| `agentskills init <name>` | 建立 Skill 骨架目錄 |
-| `agentskills login` | 儲存 API Token 至本地設定 |
-| `agentskills push <path>` | 打包並上傳 Skill Bundle |
-| `agentskills pull <name>[@version]` | 下載並解壓 Skill Bundle |
-| `agentskills search <keyword>` | 搜尋平台上的 Skills |
-| `agentskills vendor <name>[@version]` | 將 Skill 鎖定到本地 vendor 目錄 |
-| `agentskills vendor` | 從 lock file 還原所有 vendored Skills |
-| `agentskills vendor --remove <name>` | 移除已 vendor 的 Skill |
-| `agentskills mcp publish` | 互動式發布 MCP Server |
-| `agentskills mcp list` | 列出已發布的 MCP Servers |
-| `agentskills mcp run <name>` | 本地執行 MCP Server (Stdio) |
-| `agentskills mcp connect <name>` | 獲取 MCP 連線配置 |
+| 指令                                  | 說明                                  |
+| ------------------------------------- | ------------------------------------- |
+| `agentskills init <name>`             | 建立 Skill 骨架目錄                   |
+| `agentskills login`                   | 儲存 API Token 至本地設定             |
+| `agentskills push <path>`             | 打包並上傳 Skill Bundle               |
+| `agentskills pull <name>[@version]`   | 下載並解壓 Skill Bundle               |
+| `agentskills search <keyword>`        | 搜尋平台上的 Skills                   |
+| `agentskills vendor <name>[@version]` | 將 Skill 鎖定到本地 vendor 目錄       |
+| `agentskills vendor`                  | 從 lock file 還原所有 vendored Skills |
+| `agentskills vendor --remove <name>`  | 移除已 vendor 的 Skill                |
+| `agentskills mcp publish`             | 互動式發布 MCP Server                 |
+| `agentskills mcp list`                | 列出已發布的 MCP Servers              |
+| `agentskills mcp run <name>`          | 本地執行 MCP Server (Stdio)           |
+| `agentskills mcp connect <name>`      | 獲取 MCP 連線配置                     |
 
 ### 從 Git 安裝
 
@@ -61,15 +61,15 @@ agentskills pull web-search --global  # 全域安裝
 
 ## 🤖 支援的 Agents
 
-| Agent | 識別名稱 | 全域技能目錄 |
-|-------|----------|-------------|
-| Antigravity | `antigravity` | `~/.gemini/antigravity/skills/` |
-| Claude Code | `claude-code` | `~/.claude/skills/` |
-| Cursor | `cursor` | `.cursor/skills/` |
-| Codex | `codex` | `.codex/skills/` |
-| OpenCode | `opencode` | `.opencode/skills/` |
-| GitHub Copilot | `github-copilot` | `.github/copilot/skills/` |
-| Roo Code | `roo` | `.roo/skills/` |
+| Agent          | 識別名稱         | 全域技能目錄                    |
+| -------------- | ---------------- | ------------------------------- |
+| Antigravity    | `antigravity`    | `~/.gemini/antigravity/skills/` |
+| Claude Code    | `claude-code`    | `~/.claude/skills/`             |
+| Cursor         | `cursor`         | `.cursor/skills/`               |
+| Codex          | `codex`          | `.codex/skills/`                |
+| OpenCode       | `opencode`       | `.opencode/skills/`             |
+| GitHub Copilot | `github-copilot` | `.github/copilot/skills/`       |
+| Roo Code       | `roo`            | `.roo/skills/`                  |
 
 ## 📁 Skill Bundle 結構
 
@@ -172,12 +172,12 @@ agentskills mcp run playwright-mcp
 
 ## 🤖 支援的 Agents (全域路徑)
 
-| Agent | 識別名稱 | 全域技能目錄 |
-|-------|----------|-------------|
+| Agent       | 識別名稱      | 全域技能目錄                    |
+| ----------- | ------------- | ------------------------------- |
 | Antigravity | `antigravity` | `~/.gemini/antigravity/skills/` |
-| Claude Code | `claude-code` | `~/.claude/skills/` |
-| Cursor | `cursor` | `.cursor/skills/` |
-| Roo Code | `roo` | `.roo/skills/` |
+| Claude Code | `claude-code` | `~/.claude/skills/`             |
+| Cursor      | `cursor`      | `.cursor/skills/`               |
+| Roo Code    | `roo`         | `.roo/skills/`                  |
 
 ---
 

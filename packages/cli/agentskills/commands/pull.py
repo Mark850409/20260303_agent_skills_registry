@@ -8,7 +8,7 @@ from pathlib import Path
 from rich.console import Console
 import agentskills.api_client as api
 import agentskills.agents as agents
-from git import Repo
+# from git import Repo (延遲導入以防止無 git 環境崩潰)
 
 console = Console()
 
@@ -50,8 +50,15 @@ def install_from_git(url: str, target_dir: Path, skill_dir: str = ""):
         clean_url = f"https://gitlab.com/{url.split(':', 1)[1]}"
 
     try:
+        from git import Repo, exc
+    except ImportError:
+        raise ImportError("未能在系統中找到 Git。請先安裝 Git 並將其加入系統 PATH (環境變數) 中。")
+
+    try:
         Repo.clone_from(clean_url, tmp_path, depth=1)
     except Exception as e:
+        if "Bad git executable" in str(e) or (hasattr(e, '__class__') and e.__class__.__name__ == 'GitCommandNotFound'):
+            raise RuntimeError("Git 執行檔無效或未在 PATH 中。請確保系統已正確安裝 Git。")
         if tmp_path.exists():
             shutil.rmtree(tmp_path, onerror=remove_readonly)
         raise e

@@ -385,3 +385,95 @@ class AdminMCPsClassifyAll(MethodView):
 
         db.session.commit()
         return {"classified": classified, "skipped": skipped, "details": details}
+
+# ── Docker Repository 管理端點 ────────────────────────────────────
+from app.models import DockerRepository
+from app.schemas import (
+    DockerRepositorySchema, DockerRepositoryQuerySchema, 
+    DockerRepositoryListResponseSchema, DockerRepositoryCreateSchema,
+    DockerRepositoryUpdateSchema
+)
+
+@admin_blp.route("/docker-repos")
+class AdminDockerRepos(MethodView):
+    @admin_blp.arguments(DockerRepositoryQuerySchema, location="query")
+    @admin_blp.response(200, DockerRepositoryListResponseSchema)
+    @require_permission("admin:access")
+    def get(self, args):
+        """[管理員] 列出所有 Docker 倉庫"""
+        q = args.get("q", "").strip()
+        page = args.get("page", 1)
+        per_page = args.get("per_page", 10)
+
+        query = DockerRepository.query
+
+        if q:
+            query = query.filter(
+                db.or_(
+                    DockerRepository.name.ilike(f"%{q}%"),
+                    DockerRepository.description.ilike(f"%{q}%")
+                )
+            )
+
+        query = query.order_by(DockerRepository.created_at.desc())
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        return {
+            "repositories": paginated.items,
+            "total": paginated.total,
+            "page": paginated.page,
+            "pages": paginated.pages,
+            "per_page": per_page,
+        }
+
+    @admin_blp.arguments(DockerRepositoryCreateSchema)
+    @admin_blp.response(201, DockerRepositorySchema)
+    @require_permission("admin:access")
+    def post(self, data):
+        """[管理員] 新增 Docker 倉庫"""
+        if DockerRepository.query.filter_by(name=data["name"]).first():
+            abort(409, message="Docker repository name already exists")
+        
+        repo = DockerRepository(**data)
+        from flask import g
+        if hasattr(g, 'user') and g.user:
+            repo.owner_id = g.user.id
+
+        db.session.add(repo)
+        db.session.commit()
+        return repo
+
+@admin_blp.route("/docker-repos/<int:repo_id>")
+class AdminDockerRepoDetail(MethodView):
+    @admin_blp.arguments(DockerRepositoryUpdateSchema)
+    @admin_blp.response(200, DockerRepositorySchema)
+    @require_permission("admin:access")
+    def patch(self, data, repo_id):
+        """[管理員] 修改 Docker 倉庫描述"""
+        repo = DockerRepository.query.get_or_404(repo_id)
+        for key, value in data.items():
+            if value is not None:
+                setattr(repo, key, value)
+        db.session.commit()
+        return repo
+
+    @admin_blp.response(204)
+    @require_permission("admin:access")
+    def delete(self, repo_id):
+        """[管理員] 刪除 Docker 倉庫"""
+        repo = DockerRepository.query.get_or_404(repo_id)
+        repo_name = repo.name
+        db.session.delete(repo)
+        db.session.commit()
+        
+        # physically delete the repository from the mounted registry volume
+        import os
+        import shutil
+        repo_path = f"/var/lib/registry/docker/registry/v2/repositories/{repo_name}"
+        try:
+            if os.path.exists(repo_path):
+                shutil.rmtree(repo_path, ignore_errors=True)
+        except Exception as e:
+            print(f"Failed to delete physical repository directory {repo_path}: {e}")
+            
+        return ""

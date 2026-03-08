@@ -1,10 +1,10 @@
 <template>
   <header class="app-header">
     <div class="header-inner">
-      <RouterLink to="/" class="logo">
+      <RouterLink to="/" class="logo" @click="isMobileMenuOpen = false">
         <span class="logo-icon">🧠</span>
-        <span class="logo-text">AgentSkills</span>
-        <span class="logo-badge">Registry</span>
+        <span class="logo-text">AI Skills & Apps</span>
+        <span class="logo-badge">REGISTRY</span>
       </RouterLink>
 
       <nav class="nav-links">
@@ -13,6 +13,9 @@
         </RouterLink>
         <RouterLink to="/mcp" class="nav-link mcp-link" :class="{ active: $route.path.startsWith('/mcp') }">
           <span class="mcp-dot"></span>MCP
+        </RouterLink>
+        <RouterLink to="/docker" class="nav-link" :class="{ active: $route.path.startsWith('/docker') }">
+          ⚓ Docker 倉庫
         </RouterLink>
         <RouterLink v-if="authStore.hasPermission('skill:create')" to="/publish" class="nav-link" :class="{ active: $route.path === '/publish' }">
           發布

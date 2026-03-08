@@ -30,7 +30,6 @@
             <span v-for="tag in (store.currentSkill.tags || [])" :key="tag" class="tag">{{ tag }}</span>
           </div>
 
-          <!-- Install section -->
           <div class="install-section card">
             <h3 class="install-title">📦 安裝指令</h3>
             <div class="install-tabs">
@@ -44,6 +43,17 @@
             </div>
             <div class="code-block install-code">{{ installCmd }}</div>
             <button class="copy-btn" @click="copyCmd">{{ copied ? '✓ 已複製' : '複製' }}</button>
+          </div>
+
+          <!-- Examples section -->
+          <div v-if="store.currentSkill?.examples?.length" class="examples-section">
+            <h3 class="section-title">📋 快速複製範例</h3>
+            <div v-for="(ex, idx) in store.currentSkill.examples" :key="idx" class="example-card">
+              <div class="example-text">{{ ex }}</div>
+              <button class="example-copy-btn" @click="copyText(ex, idx)">
+                {{ activeCopyIdx === idx ? '✓ 已複製' : '複製' }}
+              </button>
+            </div>
           </div>
 
           <!-- SKILL.md Content -->
@@ -134,6 +144,7 @@ const store = useSkillsStore()
 
 const activeTab = ref('default')
 const copied = ref(false)
+const activeCopyIdx = ref(-1)
 
 const INSTALL_TABS = [
   { id: 'default',       label: '預設' },
@@ -152,6 +163,17 @@ const skillName = computed(() => route.params.name)
 
 const installCmd = computed(() => {
   const name = skillName.value
+  const repo = store.currentSkill?.repository || ''
+  
+  // 嘗試解析 GitHub user/repo
+  let githubShort = `agentskills/${name}`
+  if (repo.includes('github.com/')) {
+    const parts = repo.split('github.com/')[1].split('/')
+    if (parts.length >= 2) {
+      githubShort = `${parts[0]}/${parts[1]}`.replace(/\.git$/, '')
+    }
+  }
+
   const cmds = {
     default:          `agentskills pull ${name}`,
     global:           `agentskills pull ${name} --global`,
@@ -162,7 +184,7 @@ const installCmd = computed(() => {
     gemini:           `agentskills pull ${name} --agent gemini`,
     antigravity:      `agentskills pull ${name} --agent antigravity`,
     kiro:             `agentskills pull ${name} --agent kiro`,
-    github:           `agentskills pull github:agentskills/${name}`,
+    github:           `agentskills pull github:${githubShort}`,
   }
   return cmds[activeTab.value] || cmds.default
 })
@@ -189,6 +211,12 @@ async function copyCmd() {
   await navigator.clipboard.writeText(installCmd.value).catch(() => {})
   copied.value = true
   setTimeout(() => { copied.value = false }, 2000)
+}
+
+async function copyText(text, idx) {
+  await navigator.clipboard.writeText(text).catch(() => {})
+  activeCopyIdx.value = idx
+  setTimeout(() => { activeCopyIdx.value = -1 }, 2000)
 }
 
 onMounted(() => {
@@ -227,6 +255,24 @@ onMounted(() => {
   cursor: pointer; transition: all 0.15s;
 }
 .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Examples */
+.examples-section { margin-bottom: 2.5rem; }
+.section-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); }
+.example-card {
+  display: flex; gap: 1rem; align-items: center; padding: 1rem 1.25rem;
+  background: var(--bg-secondary); border-radius: 12px; margin-bottom: 0.75rem;
+  transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border-subtle);
+}
+.example-card:hover { border-color: var(--accent-dim); transform: translateY(-1px); }
+.example-text { flex: 1; font-size: 0.95rem; line-height: 1.5; color: var(--text-secondary); }
+.example-copy-btn {
+  padding: 8px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+  background: #6366f1; color: white; border: none; cursor: pointer;
+  transition: all 0.2s; white-space: nowrap; box-shadow: 0 2px 4px rgba(99,102,241,0.2);
+}
+.example-copy-btn:hover { background: #4f46e5; transform: scale(1.02); }
+.example-copy-btn:active { transform: scale(0.98); }
 
 /* Markdown */
 .skillmd-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.1rem; font-weight: 600; margin: 0 0 1rem; }

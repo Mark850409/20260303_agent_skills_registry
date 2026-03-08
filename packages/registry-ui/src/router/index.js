@@ -5,13 +5,13 @@ const routes = [
         path: '/',
         name: 'Home',
         component: () => import('@/views/HomeView.vue'),
-        meta: { title: 'AgentSkills Registry' }
+        meta: { title: 'AI Skills & Apps Registry' }
     },
     {
         path: '/skills',
         name: 'Browse',
         component: () => import('@/views/BrowseView.vue'),
-        meta: { title: '瀏覽 Skills — AgentSkills Registry' }
+        meta: { title: '瀏覽 Skills — AI Skills & Apps Registry' }
     },
     {
         path: '/skills/:name',
@@ -23,7 +23,7 @@ const routes = [
         path: '/mcp',
         name: 'McpBrowse',
         component: () => import('@/views/McpBrowseView.vue'),
-        meta: { title: 'MCP Servers — AgentSkills Registry' }
+        meta: { title: 'MCP Servers — AI Skills & Apps Registry' }
     },
     {
         path: '/mcp/:name',
@@ -35,19 +35,31 @@ const routes = [
         path: '/admin',
         name: 'Admin',
         component: () => import('@/views/AdminDashboard.vue'),
-        meta: { title: '管理後台 — AgentSkills Registry', requiresAuth: true }
+        meta: { title: '管理後台 — AI Skills & Apps Registry', requiresAuth: true }
     },
     {
         path: '/publish',
         name: 'Publish',
         component: () => import('@/views/PublishView.vue'),
-        meta: { title: '發布 Skill — AgentSkills Registry', requiresAuth: true }
+        meta: { title: '發布 Skill — AI Skills & Apps Registry', requiresAuth: true }
     },
     {
         path: '/login',
         name: 'Login',
         component: () => import('@/views/LoginView.vue'),
-        meta: { title: '登入 — AgentSkills Registry' }
+        meta: { title: '登入 — AI Skills & Apps Registry' }
+    },
+    {
+        path: '/docker',
+        name: 'DockerRegistry',
+        component: () => import('@/views/DockerRegistryView.vue'),
+        meta: { title: 'Docker 倉庫 — AI Skills & Apps Registry' }
+    },
+    {
+        path: '/docker/:repo+',
+        name: 'DockerRepoDetail',
+        component: () => import('@/views/DockerRepoDetailView.vue'),
+        meta: { title: '倉庫詳情 — AI Skills & Apps Registry' }
     }
 ]
 
@@ -73,7 +85,7 @@ router.beforeEach(async (to, from, next) => {
         }
     }
 
-    document.title = to.meta.title || 'AgentSkills Registry'
+    document.title = to.meta.title || 'AI Skills & Apps Registry'
 
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
         next({ name: 'Login', query: { redirect: to.fullPath } })

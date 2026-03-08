@@ -13,6 +13,7 @@ class Skill(db.Model):
     author = db.Column(db.String(100), nullable=False)
     license = db.Column(db.String(50), default="MIT")
     repository = db.Column(db.String(500))
+    examples = db.Column(db.JSON, default=list)  # 新增提示詞範例
     tags = db.Column(db.JSON, default=list)
     category = db.Column(db.String(50), nullable=True, index=True)  # 技能分類
     downloads = db.Column(db.Integer, default=0)
@@ -42,6 +43,7 @@ class Skill(db.Model):
             "owner_id": self.owner_id,
             "license": self.license,
             "repository": self.repository,
+            "examples": self.examples or [],
             "tags": self.tags or [],
             "category": self.category,
             "downloads": self.downloads,
@@ -195,3 +197,37 @@ class MCPServer(db.Model):
 
     def __repr__(self):
         return f"<MCPServer {self.name}>"
+
+
+class DockerRepository(db.Model):
+    """A managed Docker Repository in the Registry."""
+
+    __tablename__ = "docker_repositories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    def to_dict(self):
+        def format_date(dt):
+            if dt is None: return None
+            return dt.isoformat() if hasattr(dt, "isoformat") else str(dt)
+
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "owner_id": self.owner_id,
+            "created_at": format_date(self.created_at),
+            "updated_at": format_date(self.updated_at),
+        }
+
+    def __repr__(self):
+        return f"<DockerRepository {self.name}>"

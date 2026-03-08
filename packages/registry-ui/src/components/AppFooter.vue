@@ -2,8 +2,8 @@
   <footer class="app-footer">
     <div class="footer-inner">
       <div class="footer-brand">
-        <span>🧠 <strong>AgentSkills Registry</strong></span>
-        <span class="footer-desc">開源的 AI Agent Skills 登錄平台</span>
+        <span>🧠 <strong>AI Skills & Apps Registry</strong></span>
+        <span class="footer-sub">開源的 AI 技能與應用登錄平台</span>
       </div>
       <div class="footer-links">
         <a href="https://github.com/agentskills/registry" target="_blank">GitHub</a>

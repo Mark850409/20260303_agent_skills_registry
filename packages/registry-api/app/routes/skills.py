@@ -88,6 +88,7 @@ class Skills(MethodView):
                 author=data["author"],
                 license=data.get("license", "MIT"),
                 repository=data.get("repository"),
+                examples=data.get("examples") or self._generate_examples(data["name"], data["description"]),
                 tags=data.get("tags", []),
                 category=data.get("category"),
                 owner_id=user.id
@@ -108,6 +109,7 @@ class Skills(MethodView):
                     abort(403, message="You do not own this skill and cannot update it")
                 
             skill.description = data["description"]
+            skill.examples = data.get("examples") or skill.examples or self._generate_examples(data["name"], data["description"])
             skill.tags = data.get("tags", skill.tags)
             if data.get("category") is not None:
                 skill.category = data["category"]
@@ -127,6 +129,14 @@ class Skills(MethodView):
         db.session.commit()
 
         return skill
+
+    def _generate_examples(self, name, description):
+        """簡單的提示詞生成邏輯 (Mock AI)"""
+        # 實際應用中可串接外部 LLM
+        return [
+            f"請使用 {name} 幫助我處理：{description[:30]}...",
+            f"我想測試 {name} 的功能，請舉例說明如何使用它。"
+        ]
 
 
 @skills_blp.route("/tags")
