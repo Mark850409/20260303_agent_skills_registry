@@ -58,7 +58,7 @@
             <div class="pg-form-group">
               <label class="pg-label">AI 扮演角色 (Role)</label>
               <select v-model="form.role" class="pg-select">
-                <optgroup v-for="(roles, category) in roleGroups" :key="category" :label="category">
+                <optgroup v-for="(roles, category) in filteredRoles" :key="category" :label="category">
                   <option v-for="role in roles" :key="role" :value="role">{{ role }}</option>
                 </optgroup>
               </select>
@@ -68,37 +68,47 @@
             <div class="pg-form-group">
               <label class="pg-label">AI 最終回覆格式 (Output Format)</label>
               <p class="pg-hint">你想讓套用此提示詞的 AI 用什麼格式回答你？(例如：產生出來的爬蟲結果要用 JSON 呈現)</p>
-              <div class="pg-pill-group">
-                <button v-for="fmt in formats" :key="fmt"
-                        @click="form.format = fmt"
-                        class="pg-pill"
-                        :class="{ active: form.format === fmt }">
-                  {{ fmt }}
-                </button>
+              
+              <div v-for="(formats, category) in filteredFormats" :key="category" class="pg-sub-group">
+                <h4 class="pg-sub-label">{{ category }}</h4>
+                <div class="pg-pill-group">
+                  <button v-for="fmt in formats" :key="fmt"
+                          @click="form.format = fmt"
+                          class="pg-pill"
+                          :class="{ active: form.format === fmt }">
+                    {{ fmt }}
+                  </button>
+                </div>
               </div>
             </div>
 
             <!-- Tone -->
             <div class="pg-form-group">
               <label class="pg-label">語氣與風格 (Tone)</label>
-              <div class="pg-pill-group">
-                <button v-for="t in availableTones" :key="t"
-                        @click="form.tone = t"
-                        class="pg-pill small"
-                        :class="{ active: form.tone === t }">
-                  {{ t }}
-                </button>
+              <div v-for="(tones, category) in filteredTones" :key="category" class="pg-sub-group">
+                <h4 class="pg-sub-label">{{ category }}</h4>
+                <div class="pg-pill-group">
+                  <button v-for="t in tones" :key="t"
+                          @click="form.tone = t"
+                          class="pg-pill small"
+                          :class="{ active: form.tone === t }">
+                    {{ t }}
+                  </button>
+                </div>
               </div>
             </div>
 
             <!-- Constraints -->
             <div class="pg-form-group">
               <label class="pg-label">限制與要求 (Constraints)</label>
-              <div class="pg-checkbox-group">
-                <label v-for="req in availableConstraints" :key="req" class="pg-checkbox-label">
-                  <input type="checkbox" :value="req" v-model="form.constraints" class="pg-checkbox">
-                  <span>{{ req }}</span>
-                </label>
+              <div v-for="(reqs, category) in filteredConstraints" :key="category" class="pg-sub-group">
+                <h4 class="pg-sub-label">{{ category }}</h4>
+                <div class="pg-checkbox-group">
+                  <label v-for="req in reqs" :key="req" class="pg-checkbox-label">
+                    <input type="checkbox" :value="req" v-model="form.constraints" class="pg-checkbox">
+                    <span>{{ req }}</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -243,9 +253,9 @@ const formattedPromptText = computed(() => {
 
 const scenarios = ref([])
 const roleGroups = ref({})
-const formats = ref([])
-const availableTones = ref([])
-const availableConstraints = ref([])
+const formatGroups = ref({})
+const toneGroups = ref({})
+const constraintGroups = ref({})
 
 const form = reactive({
   scenario: 'general',
@@ -257,20 +267,64 @@ const form = reactive({
   constraints: []
 })
 
+// Computed properties to filter options based on the selected scenario's group
+const currentScenarioGroup = computed(() => {
+  const scen = scenarios.value.find(s => s.id === form.scenario)
+  return scen ? scen.group : '通用'
+})
+
+const filteredRoles = computed(() => {
+  const group = currentScenarioGroup.value
+  const result = { '通用': roleGroups.value['通用'] || [] }
+  if (group !== '通用' && roleGroups.value[group]) {
+    result[group] = roleGroups.value[group]
+  }
+  return result
+})
+
+const filteredFormats = computed(() => {
+  const group = currentScenarioGroup.value
+  const result = { '文本與報告格式 (通用)': formatGroups.value['文本與報告格式 (通用)'] || [] }
+  if (group !== '通用') {
+      const matchKey = Object.keys(formatGroups.value).find(k => k.includes(group))
+      if (matchKey) result[matchKey] = formatGroups.value[matchKey]
+  }
+  return result
+})
+
+const filteredTones = computed(() => {
+  const group = currentScenarioGroup.value
+  const result = { '文字對話語氣 (通用)': toneGroups.value['文字對話語氣 (通用)'] || [] }
+  if (group !== '通用') {
+      const matchKey = Object.keys(toneGroups.value).find(k => k.includes(group))
+      if (matchKey) result[matchKey] = toneGroups.value[matchKey]
+  }
+  return result
+})
+
+const filteredConstraints = computed(() => {
+  const group = currentScenarioGroup.value
+  const result = { '文字與通用限制 (通用)': constraintGroups.value['文字與通用限制 (通用)'] || [] }
+  if (group !== '通用') {
+      const matchKey = Object.keys(constraintGroups.value).find(k => k.includes(group))
+      if (matchKey) result[matchKey] = constraintGroups.value[matchKey]
+  }
+  return result
+})
+
 onMounted(async () => {
   try {
     const res = await fetch('/api/prompt-settings/public')
     if (res.ok) {
       const data = await res.json()
       scenarios.value = data.scenarios || []
-      formats.value = data.formats || []
-      availableTones.value = data.tones || []
-      availableConstraints.value = data.constraints || []
+      formatGroups.value = data.formatGroups || {}
+      toneGroups.value = data.toneGroups || {}
+      constraintGroups.value = data.constraintGroups || {}
       roleGroups.value = data.roleGroups || {}
       
       // Update form defaults based on fetched data
       if (scenarios.value.length > 0) form.scenario = scenarios.value[0].id;
-      if (formats.value.length > 0) form.format = formats.value[0];
       
       // Ensure "No specific role" is always an option at the top
       let hasDefault = false
@@ -281,8 +335,8 @@ onMounted(async () => {
         }
       }
       if (!hasDefault) {
-         if (!roleGroups.value['General']) roleGroups.value['General'] = []
-         roleGroups.value['General'].unshift('無指定 (由 AI 推斷最佳角色)')
+         if (!roleGroups.value['通用']) roleGroups.value['通用'] = []
+         roleGroups.value['通用'].unshift('無指定 (由 AI 推斷最佳角色)')
       }
       form.role = '無指定 (由 AI 推斷最佳角色)'
     }
@@ -599,6 +653,24 @@ const saveToKb = async () => {
 }
 
 /* Pills */
+.pg-sub-group {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+.pg-sub-group:last-child {
+  margin-bottom: 0;
+}
+.pg-sub-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.75rem 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 .pg-pill-group {
   display: flex;
   flex-wrap: wrap;

@@ -75,23 +75,31 @@ def get_public_settings():
     
     result = {
         "scenarios": [],
-        "formats": [],
-        "tones": [],
-        "constraints": [],
+        "formatGroups": {},
+        "toneGroups": {},
+        "constraintGroups": {},
         "roleGroups": {}
     }
     
     for s in settings:
+        group = s.group_name or "通用" # fallback group
+        
         if s.category == "scenario":
-            result["scenarios"].append({"id": s.group_name or s.name, "name": s.name})
+            # Pass group_name along with the scenario so the frontend knows how to filter others
+            result["scenarios"].append({"id": s.name, "name": s.name, "group": group})
         elif s.category == "format":
-            result["formats"].append(s.name)
+            if group not in result["formatGroups"]:
+                result["formatGroups"][group] = []
+            result["formatGroups"][group].append(s.name)
         elif s.category == "tone":
-            result["tones"].append(s.name)
+            if group not in result["toneGroups"]:
+                result["toneGroups"][group] = []
+            result["toneGroups"][group].append(s.name)
         elif s.category == "constraint":
-            result["constraints"].append(s.name)
+            if group not in result["constraintGroups"]:
+                result["constraintGroups"][group] = []
+            result["constraintGroups"][group].append(s.name)
         elif s.category == "role":
-            group = s.group_name or "未分類"
             if group not in result["roleGroups"]:
                 result["roleGroups"][group] = []
             result["roleGroups"][group].append(s.name)
