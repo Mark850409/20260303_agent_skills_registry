@@ -45,18 +45,20 @@ npm install -g agentskills
 | `agentskills mcp run <name>`          | 本地執行 MCP Server (Stdio)           |
 | `agentskills mcp connect <name>`      | 獲取 MCP 連線配置                     |
 
-### 從 Git 安裝
+### 下載並安裝技能
+
+您可以使用 `--local` 或 `--global` 標籤指定安裝位置（預設會提示詢問）：
 
 ```bash
-# 從 GitHub 安裝
+# 從 Registry 安裝到當前專案 (區域)
+agentskills pull web-search --local
+
+# 從 Registry 全域安裝（供特定 Agent 使用）
+agentskills pull web-search --global --agent cursor
+
+# 從 GitHub / Git URL 安裝
 agentskills pull github:user/my-skills
-
-# 從任意 Git URL 安裝
 agentskills pull https://github.com/user/my-skills.git
-
-# 指定 Agent
-agentskills pull web-search --agent cursor
-agentskills pull web-search --global  # 全域安裝
 ```
 
 ## 🤖 支援的 Agents
@@ -81,16 +83,30 @@ my-skill/
 └── assets/        ← 選填：靜態模板與資源
 ```
 
-## � 本地開發環境 (Docker)
+## 🐳 環境部署 (Docker)
 
-本專案使用 Docker Compose 快速啟動完整環境。
+本專案提供正式環境與開發環境的 Docker Compose 設定檔。
+
+### 正式環境 (Production)
+使用預設的 `docker-compose.yml`，適合部署與展示 (未掛載本地代碼)：
 
 ```bash
-# 1. 啟動所有服務（API & UI）
+# 啟動正式環境
 docker compose up -d --build
 
-# 2. 初始化資料庫資料 (Seed)
+# 初始化資料庫
 docker compose exec api python scripts/seed.py
+```
+
+### 開發環境 (Development)
+使用 `docker-compose.dev.yml`，會掛載本地代碼以便即時預覽修改：
+
+```bash
+# 啟動開發環境
+docker compose -f docker-compose.dev.yml up -d --build
+
+# 初始化資料庫
+docker compose -f docker-compose.dev.yml exec api python scripts/seed.py
 ```
 
 - **前端 UI**: [http://localhost:5173](http://localhost:5173)

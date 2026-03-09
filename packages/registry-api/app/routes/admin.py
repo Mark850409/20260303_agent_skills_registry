@@ -181,6 +181,10 @@ class AdminSkillDetail(MethodView):
         """[管理員] 修改技能元數據（含 category）"""
         skill = Skill.query.filter_by(name=name).first_or_404()
         
+        if "name" in data and data["name"] != name:
+            if Skill.query.filter_by(name=data["name"]).first():
+                abort(409, message="Skill name already exists")
+        
         for key, value in data.items():
             setattr(skill, key, value)
             
@@ -358,6 +362,11 @@ class AdminMCPDetail(MethodView):
     def patch(self, data, name):
         """[管理員] 修改 MCP 控制元數據"""
         server = MCPServer.query.filter_by(name=name).first_or_404()
+        
+        if "name" in data and data["name"] != name:
+            if MCPServer.query.filter_by(name=data["name"]).first():
+                abort(409, message="MCP Server name already exists")
+                
         for key, value in data.items():
             if value is not None:
                 setattr(server, key, value)

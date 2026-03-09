@@ -1,6 +1,6 @@
 {
     "name": "agentskills",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "CLI for AI Skills & Apps Registry",
     "main": "bin/agentskills.js",
     "bin": {
@@ -19,6 +19,6 @@
         "setup.py"
     ],
     "dependencies": {
-        "agentskills": "^1.0.0"
+        "agentskills": "^1.0.1"
     }
 }

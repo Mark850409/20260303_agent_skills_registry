@@ -137,19 +137,20 @@ def install_from_git(url: str, target_dir: Path, skill_dir: str = ""):
 
 
 
-@click.command()
+@click.command("pull")
 @click.argument("name_or_url")
 @click.option("--version", "-v", help="指定版本（僅限 Registry）")
 @click.option("--agent", "-a", help="指定目標 AI Agent (如 cursor, claude-code)")
-@click.option("--global", "is_global", is_flag=True, help="安裝到全域技能目錄")
+@click.option("--global", "-g", "is_global_flag", is_flag=True, help="安裝到家目錄(全域)")
+@click.option("--local", "-l", "is_local_flag", is_flag=True, help="安裝到當前專案目錄(區域)")
 @click.option("--skill", "git_skill_dir", help="Git 儲存庫中的特定技能子目錄")
-def pull_cmd(name_or_url: str, version: str, agent: str, is_global: bool, git_skill_dir: str):
+def pull_cmd(name_or_url: str, version: str, agent: str, is_global_flag: bool, is_local_flag: bool, git_skill_dir: str):
     """下載並安裝 Skill。
 
     \b
     範例:
-      agentskills pull web-search
-      agentskills pull web-search@1.0.0
+      agentskills pull web-search --local
+      agentskills pull web-search@1.0.0 -g
       agentskills pull github:user/skills --skill web-search
       agentskills pull https://github.com/user/my-skill.git --agent cursor
     """
@@ -157,6 +158,16 @@ def pull_cmd(name_or_url: str, version: str, agent: str, is_global: bool, git_sk
     if not agent:
         detected = agents.detect_agents()
         agent = detected[0]
+        
+    is_global = None
+    if is_global_flag:
+        is_global = True
+    elif is_local_flag:
+        is_global = False
+
+    if is_global is None:
+        import click
+        is_global = click.confirm("是否要安裝到家目錄(全域)？(輸入 n 則安裝到當前專案目錄)", default=False)
     
     try:
         install_path = agents.get_install_path(agent, is_global)

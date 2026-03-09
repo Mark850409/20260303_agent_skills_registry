@@ -28,29 +28,36 @@ def get_catalog():
         
         # Merge with actual verdaccio catalog if any exist
         try:
+            # First, check local storage directly if available (mounted in future?)
+            # Since Verdaccio /-/all mixes uplinks and local, we use a trick:
+            # We call /-/all, but filter out anything that we know is just cached.
+            # Unfortunately /-/all doesn't tell us. Alternative: parse .verdaccio-db.json via API if possible? Not possible.
+            # Let's search using /-/v1/search and see what is local. 
+            # Actually, Verdaccio 5 /-/all returns ANY package it knows about.
+            # We can use /-/local (Verdaccio 5 added it, but maybe not in this minor version?)
+            # For now, let's just use what's in the database + ONLY things we explicitly discover as local?
+            
             response = requests.get(f"{VERDACCIO_URL}/-/all", headers=auth_header, timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 registry_pkgs = [k for k in data.keys() if k != "_updated" and k != "npm"]
                 
-                # Auto-register new packages in background/lazy-mode
-                for pkg_name in registry_pkgs:
-                    if pkg_name not in db_pkg_names:
-                        try:
-                            new_pkg = NpmPackage(name=pkg_name, description="Auto-registered from registry")
-                            db.session.add(new_pkg)
-                            db_pkg_names.add(pkg_name)
-                        except Exception:
-                            db.session.rollback()
+                # Filter locally? We can't tell from /-/all easily. Let's check package metadata.
+                # Actually, if we just want to hide external packages, we shouldn't auto-register everything from /-/all unconditionally.
+                # Let's check if the package has a local dist-tag or something? 
+                # Better: skip auto-registration from /-/all. ONLY show what is in DB or explicitly published by us.
+                # When a user publishes, Verdaccio doesn't tell us unless we use a webhook.
                 
-                if registry_pkgs:
-                    db.session.commit()
-                    
-                db_pkg_names.update(registry_pkgs)
+                # Let's fetch local packages by reading the verdaccio API.
+                # The /-/v1/search endpoint actually returns all packages if no text is given? Let's try.
+                pass
+                
         except Exception as e:
             print(f"Verdaccio connection error: {e}") # Ignore registry connection errors here, show db repos at least
             
         return jsonify({
+            # Temporary: since /-/all is polluted, we only return DB packages for now, 
+            # OR we fetch individual package info to check if they are local?
             "packages": sorted(list(db_pkg_names))
         })
     except Exception as e:

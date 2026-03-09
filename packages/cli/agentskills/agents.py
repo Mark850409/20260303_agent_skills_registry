@@ -6,10 +6,15 @@ from pathlib import Path
 HOME = Path.home()
 
 AGENTS = {
+    "default": {
+        "name": "Default",
+        "global_dir": HOME / ".agent" / "skills",
+        "project_dir": Path(".agent") / "skills",
+    },
     "antigravity": {
         "name": "Antigravity",
         "global_dir": HOME / ".gemini" / "antigravity" / "skills",
-        "project_dir": Path(".agents") / "skills",
+        "project_dir": Path(".gemini") / "antigravity" / "skills",
     },
     "claude-code": {
         "name": "Claude Code",
@@ -54,7 +59,7 @@ AGENTS = {
     "claude-desktop": {
         "name": "Claude Desktop",
         "global_dir": HOME / ".config" / "claude" / "skills",
-        "project_dir": Path(".claude") / "desktop" / "skills",
+        "project_dir": Path(".config") / "claude" / "skills",
     },
 }
 
@@ -63,10 +68,12 @@ def detect_agents() -> list[str]:
     """自動偵測目前環境中已安裝的 Agents。"""
     detected = []
     for agent_id, info in AGENTS.items():
+        if agent_id == "default":
+            continue
         parent = info["global_dir"].parent
         if parent.exists():
             detected.append(agent_id)
-    return detected or ["antigravity"]
+    return detected or ["default"]
 
 
 def get_install_path(agent_id: str, is_global: bool = False) -> Path:

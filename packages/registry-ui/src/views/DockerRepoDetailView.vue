@@ -135,7 +135,7 @@ import { useAuthStore } from '@/store/auth'
 
 const route = useRoute()
 const authStore = useAuthStore()
-const repo = route.params.repo
+const repo = Array.isArray(route.params.repo) ? route.params.repo.join('/') : route.params.repo
 const tags = ref([])
 const selectedTags = ref([])
 const registryInfo = ref(null)

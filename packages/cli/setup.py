@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="agentskills",
-    version="1.0.0",
-    description="CLI for AgentSkills Registry — install, push & manage AI Agent Skills",
+    version="1.0.1",
+    description="CLI for AI Skills & Apps Registry — install, push & manage AI Skills & Apps",
     author="AgentSkills Team",
     python_requires=">=3.9",
     packages=find_packages(),

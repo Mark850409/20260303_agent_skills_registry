@@ -6,10 +6,10 @@ services:
     ports:
       - "5006:5006"
     environment:
-      - FLASK_ENV=production
+      - FLASK_ENV=development
       - DATABASE_URL=postgresql://registry_user:registry_password@db:5432/registry_db
-      - NPM_EXTERNAL_URL=https://zanehsu.myqnapcloud.com:5008/npm
-      - REGISTRY_EXTERNAL_URL=zanehsu.myqnapcloud.com:5008
+      - NPM_EXTERNAL_URL=http://localhost:5007/npm
+      - REGISTRY_EXTERNAL_URL=localhost:5007
     volumes:
       - ./packages/registry-api:/app
       - ./packages/cli:/cli
@@ -101,7 +101,3 @@ services:
 networks:
   agentskills-network:
     driver: bridge
-
-# 移除 volumes 定義，因為改用 bind mount
-
-

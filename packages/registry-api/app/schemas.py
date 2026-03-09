@@ -107,6 +107,7 @@ class UserCreateSchema(Schema):
 
 
 class SkillUpdateSchema(Schema):
+    name = fields.String()
     description = fields.String()
     author = fields.String()
     license = fields.String()
@@ -196,6 +197,7 @@ class MCPPublishSchema(Schema):
 
 
 class MCPUpdateSchema(Schema):
+    name          = fields.String()
     display_name  = fields.String()
     description   = fields.String()
     author        = fields.String()

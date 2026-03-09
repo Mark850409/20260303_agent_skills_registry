@@ -126,7 +126,7 @@ import { useAuthStore } from '@/store/auth'
 
 const route = useRoute()
 const authStore = useAuthStore()
-const pkgName = route.params.name
+const pkgName = Array.isArray(route.params.name) ? route.params.name.join('/') : route.params.name
 const packageInfo = ref(null)
 const registryUrl = ref('http://localhost:5005/npm/')
 const loading = ref(true)

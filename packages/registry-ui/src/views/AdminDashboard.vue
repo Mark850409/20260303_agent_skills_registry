@@ -568,6 +568,10 @@
           
           <div class="modal-body">
             <div class="form-group mb-4">
+              <label class="form-label">技能名稱</label>
+              <input v-model="editForm.name" class="form-input" placeholder="技能名稱" />
+            </div>
+            <div class="form-group mb-4">
               <label class="form-label">描述</label>
               <textarea v-model="editForm.description" rows="3" class="form-input" placeholder="輸入技能描述..."></textarea>
             </div>
@@ -591,6 +595,47 @@
       </div>
     </Teleport>
 
+
+    <!-- MCP 編輯 Modal -->
+    <Teleport to="body">
+      <div v-if="editingMcp" class="modal-overlay" @click.self="cancelEditMcp">
+        <div class="modal-card card shadow-lg">
+          <div class="modal-header">
+            <h3>編輯 MCP Server：{{ editingMcp.display_name || editingMcp.name }}</h3>
+          </div>
+          
+          <div class="modal-body">
+            <div class="form-group mb-4">
+              <label class="form-label">識別標籤 (Name)</label>
+              <input v-model="mcpForm.name" class="form-input" placeholder="例如: github-mcp" />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">顯示名稱 (Display Name)</label>
+              <input v-model="mcpForm.display_name" class="form-input" placeholder="例如: GitHub 整合服務" />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">描述</label>
+              <textarea v-model="mcpForm.description" rows="3" class="form-input" placeholder="輸入 MCP 描述..."></textarea>
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">作者</label>
+              <input v-model="mcpForm.author" class="form-input" placeholder="作者名稱" />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">標籤 (以逗號分隔)</label>
+              <input v-model="mcpForm.tagsString" class="form-input" placeholder="例如: github, git, tools" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-ghost" @click="cancelEditMcp">取消</button>
+            <button class="btn-primary" @click="saveMcpEdit" :disabled="saving">
+              {{ saving ? '儲存中...' : '儲存修改' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- 使用者編輯/新增 Modal -->
     <Teleport to="body">
@@ -789,7 +834,7 @@ const editingMcp = ref(null)
 const classifyingAll = ref(false)
 
 const editingSkill = ref(null)
-const editForm = ref({ description: '', author: '', tagsString: '' })
+const editForm = ref({ name: '', description: '', author: '', tagsString: '' })
 
 const editingUser = ref(null)
 const isCreatingUser = ref(false)
@@ -1006,6 +1051,7 @@ function debouncedFetchNpmPackages() {
 function editSkill(skill) {
   editingSkill.value = skill
   editForm.value = {
+    name: skill.name,
     description: skill.description,
     author: skill.author,
     tagsString: (skill.tags || []).join(', ')
@@ -1018,6 +1064,7 @@ async function saveEdit() {
   saving.value = true
   try {
     const payload = {
+      name: editForm.value.name,
       description: editForm.value.description,
       author: editForm.value.author,
       tags: editForm.value.tagsString.split(',').map(t => t.trim()).filter(Boolean)
@@ -1055,11 +1102,50 @@ async function confirmDelete(skill) {
 }
 
 // MCP 操作
+const mcpForm = ref({ name: '', display_name: '', description: '', author: '', tagsString: '' })
+
 function editMcp(mcp) {
   editingMcp.value = mcp
-  // 這裡複用編輯 Modal。注意：MCP 與 Skill 欄位名稱不同（display_name vs name），Modal 需要稍後做條件渲染
-  editingSkill.value = null 
-  editSkill(mcp) 
+  mcpForm.value = {
+    name: mcp.name,
+    display_name: mcp.display_name,
+    description: mcp.description,
+    author: mcp.author,
+    tagsString: (mcp.tags || []).join(', ')
+  }
+}
+
+function cancelEditMcp() { editingMcp.value = null }
+
+async function saveMcpEdit() {
+  saving.value = true
+  try {
+    const payload = {
+      name: mcpForm.value.name,
+      display_name: mcpForm.value.display_name,
+      description: mcpForm.value.description,
+      author: mcpForm.value.author,
+      tags: mcpForm.value.tagsString.split(',').map(t => t.trim()).filter(Boolean)
+    }
+    const res = await fetch(`/api/admin/mcps/${editingMcp.value.name}`, {
+      method: 'PATCH',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify(payload)
+    })
+    if (res.ok) {
+      await fetchMcps(mcpPagination.page)
+      cancelEditMcp()
+    } else {
+      alert('儲存失敗')
+    }
+  } catch (e) {
+    alert('儲存失敗')
+  } finally {
+    saving.value = false
+  }
 }
 
 async function confirmDeleteMcp(mcp) {

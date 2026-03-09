@@ -31,7 +31,17 @@
           </div>
 
           <div class="install-section card">
-            <h3 class="install-title">📦 安裝指令</h3>
+            <div class="install-header-row">
+              <h3 class="install-title">📦 安裝指令</h3>
+              <div class="install-options">
+                <label class="install-radio">
+                  <input type="radio" :value="false" v-model="isGlobalInstall" /> 本專案 (--local)
+                </label>
+                <label class="install-radio">
+                  <input type="radio" :value="true" v-model="isGlobalInstall" /> 全域 (-g)
+                </label>
+              </div>
+            </div>
             <div class="install-tabs">
               <button
                 v-for="tab in INSTALL_TABS"
@@ -145,10 +155,10 @@ const store = useSkillsStore()
 const activeTab = ref('default')
 const copied = ref(false)
 const activeCopyIdx = ref(-1)
+const isGlobalInstall = ref(false)
 
 const INSTALL_TABS = [
   { id: 'default',       label: '預設' },
-  { id: 'global',        label: '全域' },
   { id: 'cursor',        label: 'Cursor' },
   { id: 'claude-code',   label: 'Claude Code' },
   { id: 'claude-desktop', label: 'Claude Desktop' },
@@ -174,17 +184,18 @@ const installCmd = computed(() => {
     }
   }
 
+  const flag = isGlobalInstall.value ? '-g' : '--local'
+
   const cmds = {
-    default:          `agentskills pull ${name}`,
-    global:           `agentskills pull ${name} --global`,
-    cursor:           `agentskills pull ${name} --agent cursor`,
-    'claude-code':    `agentskills pull ${name} --agent claude-code`,
-    'claude-desktop': `agentskills pull ${name} --agent claude-desktop`,
-    codex:            `agentskills pull ${name} --agent codex`,
-    gemini:           `agentskills pull ${name} --agent gemini`,
-    antigravity:      `agentskills pull ${name} --agent antigravity`,
-    kiro:             `agentskills pull ${name} --agent kiro`,
-    github:           `agentskills pull github:${githubShort}`,
+    default:          `agentskills pull ${name} ${flag}`,
+    cursor:           `agentskills pull ${name} --agent cursor ${flag}`,
+    'claude-code':    `agentskills pull ${name} --agent claude-code ${flag}`,
+    'claude-desktop': `agentskills pull ${name} --agent claude-desktop ${flag}`,
+    codex:            `agentskills pull ${name} --agent codex ${flag}`,
+    gemini:           `agentskills pull ${name} --agent gemini ${flag}`,
+    antigravity:      `agentskills pull ${name} --agent antigravity ${flag}`,
+    kiro:             `agentskills pull ${name} --agent kiro ${flag}`,
+    github:           `agentskills pull github:${githubShort} ${flag}`,
   }
   return cmds[activeTab.value] || cmds.default
 })
@@ -239,7 +250,11 @@ onMounted(() => {
 
 /* Install */
 .install-section { padding: 1.25rem; margin-bottom: 2rem; position: relative; }
-.install-title { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.75rem; }
+.install-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 1rem; }
+.install-title { font-size: 0.95rem; font-weight: 600; margin: 0; }
+.install-options { display: flex; gap: 1rem; }
+.install-radio { font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.3rem; }
+.install-radio input { accent-color: var(--accent); cursor: pointer; }
 .install-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
 .tab-btn {
   padding: 4px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 500;

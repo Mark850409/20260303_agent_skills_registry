@@ -96,7 +96,10 @@ const fetchCatalog = async () => {
     } else {
         // Fallback or user without admin permission
         const catRes = await axios.get('/api/docker/catalog')
-        repositories.value = (catRes.data.repositories || []).map(r => ({ name: r, description: '' }))
+        repositories.value = (catRes.data.repositories || []).map(r => ({ 
+            name: typeof r === 'string' ? r : r.name, 
+            description: typeof r === 'string' ? '' : (r.description || '') 
+        }))
     }
 
   } catch (error) {
