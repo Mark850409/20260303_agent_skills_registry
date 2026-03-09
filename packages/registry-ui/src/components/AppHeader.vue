@@ -12,18 +12,36 @@
       </button>
 
       <nav class="nav-links" :class="{ 'mobile-open': isMobileMenuOpen }">
+        <!-- Main Nav Links -->
         <RouterLink to="/skills" class="nav-link" :class="{ active: $route.path.startsWith('/skills') }" @click="isMobileMenuOpen = false">
           🧩 Skills
         </RouterLink>
-        <RouterLink to="/mcp" class="nav-link mcp-link" :class="{ active: $route.path.startsWith('/mcp') }" @click="isMobileMenuOpen = false">
-          <span class="mcp-dot"></span>🔌 MCP
+        <RouterLink to="/prompt-generator" class="nav-link" :class="{ active: $route.path.startsWith('/prompt-generator') }" @click="isMobileMenuOpen = false">
+          ✨ 提示詞助理
         </RouterLink>
-        <RouterLink to="/docker" class="nav-link" :class="{ active: $route.path.startsWith('/docker') }" @click="isMobileMenuOpen = false">
-          ⚓ Docker 倉庫
-        </RouterLink>
-        <RouterLink to="/npm" class="nav-link" :class="{ active: $route.path.startsWith('/npm') }" @click="isMobileMenuOpen = false">
-          📦 NPM 倉庫
-        </RouterLink>
+
+        <!-- Dropdown for Warehouses / MCP -->
+        <div class="nav-dropdown" v-click-outside="closeToolsDropdown">
+          <button class="nav-link dropdown-toggle" @click="toggleToolsDropdown" :class="{ active: isToolsRouteActive }">
+            🧰 更多資源 <span class="nav-arrow" :class="{ open: toolsDropdownOpen }">▾</span>
+          </button>
+          
+          <div v-if="toolsDropdownOpen" class="nav-menu">
+            <RouterLink to="/prompts/knowledge" class="nav-menu-item" :class="{ active: $route.path.startsWith('/prompts/knowledge') }" @click="closeToolsDropdown(); isMobileMenuOpen = false">
+              💡 提示詞知識庫
+            </RouterLink>
+            <RouterLink to="/mcp" class="nav-menu-item" :class="{ active: $route.path.startsWith('/mcp') }" @click="closeToolsDropdown(); isMobileMenuOpen = false">
+              <span class="mcp-dot"></span>
+              🔌 MCP 伺服器
+            </RouterLink>
+            <RouterLink to="/docker" class="nav-menu-item" :class="{ active: $route.path.startsWith('/docker') }" @click="closeToolsDropdown(); isMobileMenuOpen = false">
+              ⚓ Docker 倉庫
+            </RouterLink>
+            <RouterLink to="/npm" class="nav-menu-item" :class="{ active: $route.path.startsWith('/npm') }" @click="closeToolsDropdown(); isMobileMenuOpen = false">
+              📦 NPM 倉庫
+            </RouterLink>
+          </div>
+        </div>
         <RouterLink v-if="authStore.hasPermission('skill:create')" to="/publish" class="nav-link" :class="{ active: $route.path === '/publish' }" @click="isMobileMenuOpen = false">
           📤 發布
         </RouterLink>
@@ -85,7 +103,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 
@@ -93,14 +111,32 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const dropdownOpen = ref(false)
+const toolsDropdownOpen = ref(false)
 const isMobileMenuOpen = ref(false)
+
+const isToolsRouteActive = computed(() => {
+  return router.currentRoute.value.path.startsWith('/prompts/knowledge') || 
+         router.currentRoute.value.path.startsWith('/mcp') || 
+         router.currentRoute.value.path.startsWith('/docker') || 
+         router.currentRoute.value.path.startsWith('/npm')
+})
 
 function toggleDropdown() {
   dropdownOpen.value = !dropdownOpen.value
+  toolsDropdownOpen.value = false
 }
 
 function closeDropdown() {
   dropdownOpen.value = false
+}
+
+function toggleToolsDropdown() {
+  toolsDropdownOpen.value = !toolsDropdownOpen.value
+  dropdownOpen.value = false
+}
+
+function closeToolsDropdown() {
+  toolsDropdownOpen.value = false
 }
 
 function handleLogout() {
@@ -270,13 +306,63 @@ const vClickOutside = {
   align-items: center;
   gap: 6px;
 }
-.nav-link:hover, .nav-link.active {
+.nav-link:hover, .nav-link.active, .nav-link.dropdown-toggle:hover {
   color: var(--text-primary);
   background: rgba(255,255,255,0.08);
 }
-.mcp-link .mcp-dot { width: 6px; height: 6px; border-radius: 50%; background: #f97316; opacity: 0.7; }
-.mcp-link:hover, .mcp-link.active { color: #f97316; background: rgba(249,115,22,0.1); }
-.mcp-link.active .mcp-dot { opacity: 1; }
+.nav-link.dropdown-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.nav-arrow {
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+}
+.nav-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Nav Dropdown */
+.nav-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.nav-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  min-width: 180px;
+  background: var(--bg-secondary, #161b22);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  overflow: hidden;
+  z-index: 999;
+  animation: menuFadeIn 0.15s ease;
+}
+.nav-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.nav-menu-item:last-child { border-bottom: none; }
+.nav-menu-item:hover, .nav-menu-item.active {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
+}
+
+.mcp-dot { display:inline-block; width: 6px; height: 6px; border-radius: 50%; background: #f97316; opacity: 0.7; }
+.nav-menu-item.active .mcp-dot { opacity: 1; }
 
 /* Mobile Menu Button */
 .mobile-menu-btn {

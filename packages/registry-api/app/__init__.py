@@ -33,7 +33,11 @@ def create_app(config_name="default"):
     from app.routes.auth import auth_blp
     from app.routes.admin import admin_blp
     from app.routes.mcps import mcps_blp
+    from app.routes.prompts import bp as prompts_blp
+    from app.routes.admin_prompts import bp as admin_prompts_blp
+    from app.routes.admin_prompts import public_bp as public_prompts_blp
 
+    from app.routes.prompt_knowledge import admin_knowledge_bp, public_knowledge_bp
     from app.routes.docker import docker_bp
     from app.routes.npm import npm_bp
     
@@ -41,6 +45,12 @@ def create_app(config_name="default"):
     api.register_blueprint(auth_blp)
     api.register_blueprint(admin_blp)
     api.register_blueprint(mcps_blp)
+    api.register_blueprint(prompts_blp)
+    api.register_blueprint(admin_prompts_blp)
+    api.register_blueprint(admin_knowledge_bp)
+    
+    app.register_blueprint(public_prompts_blp)
+    app.register_blueprint(public_knowledge_bp)
     app.register_blueprint(docker_bp, url_prefix='/api/docker')
     app.register_blueprint(npm_bp, url_prefix='/api/npm')
 

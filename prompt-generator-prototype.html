@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 提示詞生成器 (新手引導版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #f6f8fd 0%, #f1f5f9 100%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 p-4 md:p-8">
+    <div id="app" class="max-w-5xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-2">
+                智能提示詞助理
+            </h1>
+            <p class="text-slate-500">不用背指令，點擊幾下即可生成專業 Prompt</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left Column: Controls (8 cols) -->
+            <div class="lg:col-span-7 space-y-6">
+                
+                <!-- Step 1: Scenario Selection -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h2 class="text-lg font-bold mb-4 flex items-center">
+                        <i data-lucide="layout-grid" class="w-5 h-5 mr-2 text-indigo-500"></i>
+                        1. 選擇你的情境
+                    </h2>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button v-for="scen in scenarios" :key="scen.id" 
+                                @click="currentScenario = scen.id"
+                                :class="['p-4 rounded-xl border text-left transition-all duration-200', 
+                                         currentScenario === scen.id ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50']">
+                            <div class="font-semibold text-slate-800">{{ scen.name }}</div>
+                            <div class="text-xs text-slate-500 mt-1">{{ scen.desc }}</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Dynamic Form based on Scenario -->
+                <transition name="fade" mode="out-in">
+                    <div :key="currentScenario" class="glass-card rounded-2xl p-6">
+                        <h2 class="text-lg font-bold mb-4 flex items-center">
+                            <i data-lucide="edit-3" class="w-5 h-5 mr-2 text-blue-500"></i>
+                            2. 填寫關鍵資訊
+                        </h2>
+
+                        <!-- Chat Scenario -->
+                        <div v-if="currentScenario === 'chat'" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">AI 扮演的角色 (Role)</label>
+                                <select v-model="form.chat.role" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    <option value="一位友善且耐心的助理">預設助理</option>
+                                    <option value="一位專業的領域專家">領域專家</option>
+                                    <option value="一位幽默風趣的朋友">幽默的好友</option>
+                                    <option value="一位嚴格且精準的評論家">嚴格的評論家</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">你想問什麼？ (Task) <span class="text-red-500">*</span></label>
+                                <textarea v-model="form.chat.task" rows="3" placeholder="例如：幫我寫一封請假信給老闆..." class="w-full p-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">語氣風格 (Tone)</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <button v-for="tone in ['專業', '輕鬆', '幽默', '委婉', '強調重點']" :key="tone"
+                                            @click="toggleSelection(form.chat.tones, tone)"
+                                            :class="['px-3 py-1.5 rounded-full text-sm border transition-colors',
+                                                     form.chat.tones.includes(tone) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50']">
+                                        {{ tone }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Code Scenario -->
+                        <div v-if="currentScenario === 'code'" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">程式語言 / 框架</label>
+                                <input v-model="form.code.language" type="text" placeholder="例如：Python, Vue3, React..." class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">需要實現的功能或修復的 Bug <span class="text-red-500">*</span></label>
+                                <textarea v-model="form.code.task" rows="3" placeholder="例如：寫一個可以將圖片轉成 Base64 的函數..." class="w-full p-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">額外要求 (Constraints)</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <button v-for="req in ['加上詳細註解', '考慮效能最佳化', '需包含 Edge Case 處理', '使用 ES6+ 語法', '提供使用範例']" :key="req"
+                                            @click="toggleSelection(form.code.reqs, req)"
+                                            :class="['px-3 py-1.5 rounded-full text-sm border transition-colors',
+                                                     form.code.reqs.includes(req) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50']">
+                                        {{ req }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </transition>
+            </div>
+
+            <!-- Right Column: Result Preview (4 cols) -->
+            <div class="lg:col-span-5 relative">
+                <div class="glass-card rounded-2xl p-6 sticky top-6 flex flex-col h-[calc(100vh-6rem)] max-h-[600px]">
+                    <h2 class="text-lg font-bold mb-4 flex items-center justify-between">
+                        <span class="flex items-center">
+                            <i data-lucide="sparkles" class="w-5 h-5 mr-2 text-yellow-500"></i>
+                            最終提示詞
+                        </span>
+                        <span class="text-xs font-normal text-slate-400">即時預覽</span>
+                    </h2>
+                    
+                    <div class="flex-grow bg-slate-900 rounded-xl p-4 overflow-hidden relative group shadow-inner">
+                        <textarea readonly v-model="generatedPrompt" class="w-full h-full bg-transparent text-slate-100 font-mono text-sm resize-none outline-none leading-relaxed placeholder-slate-600" placeholder="請在左側選擇情境並輸入內容..."></textarea>
+                    </div>
+
+                    <div class="mt-4 space-y-3">
+                        <button @click="copyPrompt" :disabled="!isPromptValid"
+                                class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors flex items-center justify-center shadow-lg shadow-indigo-200">
+                            <i data-lucide="copy" class="w-4 h-4 mr-2"></i>
+                            {{ copyStatus }}
+                        </button>
+                        <p class="text-xs text-center text-slate-500">複製後直接貼上至 ChatGPT / Claude</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, watch, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const currentScenario = ref('chat');
+                const copyStatus = ref('一鍵複製');
+                
+                const scenarios = [
+                    { id: 'chat', name: '日常助理 / 寫作', desc: '寫信、總結、翻譯、發想點子' },
+                    { id: 'code', name: '程式開發 / 除錯', desc: '寫扣、Debug、Code Review' }
+                ];
+
+                const form = ref({
+                    chat: {
+                        role: '一位友善且耐心的助理',
+                        task: '',
+                        tones: []
+                    },
+                    code: {
+                        language: '',
+                        task: '',
+                        reqs: []
+                    }
+                });
+
+                const toggleSelection = (array, item) => {
+                    const index = array.indexOf(item);
+                    if (index > -1) array.splice(index, 1);
+                    else array.push(item);
+                };
+
+                const generatedPrompt = computed(() => {
+                    if (currentScenario.value === 'chat') {
+                        const d = form.value.chat;
+                        if (!d.task) return '';
+                        let p = `請你扮演${d.role}。\n\n`;
+                        p += `任務：\n${d.task}\n\n`;
+                        if (d.tones.length > 0) {
+                            p += `要求：\n請使用「${d.tones.join('、')}」的語氣和風格來回覆。`;
+                        }
+                        return p;
+                    } else if (currentScenario.value === 'code') {
+                        const d = form.value.code;
+                        if (!d.task) return '';
+                        let p = `你是一位資深的軟體工程師。`;
+                        if (d.language) p += `特別精通 ${d.language}。`;
+                        p += `\n\n`;
+                        p += `請幫我完成以下任務：\n${d.task}\n\n`;
+                        if (d.reqs.length > 0) {
+                            p += `請嚴格遵守以下要求：\n`;
+                            d.reqs.forEach(req => {
+                                p += `- ${req}\n`;
+                            });
+                        }
+                        p += `\n請只提供高品質、可運行的程式碼，並在必要時給予簡練的解釋。`;
+                        return p;
+                    }
+                    return '';
+                });
+
+                const isPromptValid = computed(() => {
+                    return generatedPrompt.value.trim().length > 0;
+                });
+
+                const copyPrompt = async () => {
+                    if (!generatedPrompt.value) return;
+                    try {
+                        await navigator.clipboard.writeText(generatedPrompt.value);
+                        copyStatus.value = '已複製！';
+                        setTimeout(() => { copyStatus.value = '一鍵複製'; }, 2000);
+                    } catch (err) {
+                        alert('複製失敗，請手動選取複製');
+                    }
+                };
+
+                onMounted(() => {
+                    lucide.createIcons();
+                });
+
+                watch(currentScenario, () => {
+                    setTimeout(() => lucide.createIcons(), 10);
+                });
+
+                return {
+                    currentScenario,
+                    scenarios,
+                    form,
+                    toggleSelection,
+                    generatedPrompt,
+                    isPromptValid,
+                    copyPrompt,
+                    copyStatus
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>

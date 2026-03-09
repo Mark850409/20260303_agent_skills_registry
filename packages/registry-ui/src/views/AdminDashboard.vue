@@ -46,6 +46,18 @@
             <span class="stat-value">{{ npmPagination.total || 0 }}</span>
           </div>
         </template>
+        <template v-else-if="currentTab === 'prompts'">
+          <div class="stat-card">
+            <span class="stat-label">設定總數</span>
+            <span class="stat-value">{{ prompts.length }}</span>
+          </div>
+        </template>
+        <template v-else-if="currentTab === 'prompt-kb'">
+          <div class="stat-card">
+            <span class="stat-label">知識庫總數</span>
+            <span class="stat-value">{{ promptKbEntries.length }}</span>
+          </div>
+        </template>
       </div>
     </header>
 
@@ -55,6 +67,8 @@
       <button :class="{ active: currentTab === 'users' }" @click="currentTab = 'users'">使用者管理</button>
       <button :class="{ active: currentTab === 'docker' }" @click="currentTab = 'docker'">容器管理</button>
       <button :class="{ active: currentTab === 'npm' }" @click="currentTab = 'npm'">NPM 管理</button>
+      <button :class="{ active: currentTab === 'prompts' }" @click="currentTab = 'prompts'">提示詞設定</button>
+      <button :class="{ active: currentTab === 'prompt-kb' }" @click="currentTab = 'prompt-kb'">提示詞知識庫</button>
     </div>
 
     <!-- 技能管理頁面 -->
@@ -557,6 +571,153 @@
       </div>
     </div>
 
+    <!-- 提示詞管理頁面 -->
+    <div v-else-if="currentTab === 'prompts'" class="admin-content card">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="icon">🔍</span>
+          <select v-model="promptCategoryFilter" @change="fetchPrompts" class="form-input" style="padding-left: 2.5rem; max-width: 200px;">
+            <option v-for="cat in promptCategories" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
+          </select>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn-primary" @click="createPrompt">+ 新增設定</button>
+          <button class="btn-ghost" @click="fetchPrompts">刷新清單</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>分類 (Category)</th>
+              <th>名稱 / 內容 (Name)</th>
+              <th>群組 (Group)</th>
+              <th>狀態</th>
+              <th>排序權重</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="prompt in prompts" :key="prompt.id">
+              <td>
+                <span class="category-badge">{{ promptCategories.find(c => c.value === prompt.category)?.label || prompt.category }}</span>
+              </td>
+              <td><strong>{{ prompt.name }}</strong></td>
+              <td>{{ prompt.group_name || '-' }}</td>
+              <td>
+                <span :class="prompt.is_active ? 'badge-success' : 'badge-danger'" style="padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; background: rgba(56, 189, 248, 0.1); color: #38bdf8;">
+                  {{ prompt.is_active ? '啟用' : '停用' }}
+                </span>
+              </td>
+              <td>{{ prompt.order_index }}</td>
+              <td class="actions">
+                <button class="btn-action edit" @click="editPrompt(prompt)">編輯</button>
+                <button class="btn-action delete" @click="deletePrompt(prompt)">刪除</button>
+              </td>
+            </tr>
+            <tr v-if="prompts.length === 0" class="empty-row">
+              <td colspan="6">尚無任何提示詞設定資料</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 提示詞知識庫管理頁面 -->
+    <div v-else-if="currentTab === 'prompt-kb'" class="admin-content card">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="icon">🔍</span>
+          <input v-model="promptKbSearchQuery" placeholder="搜尋提示詞標題或內容..." @input="fetchPromptKb" />
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn-primary" @click="classifyAllPromptKb" :disabled="classifyingPromptKb">
+            <span v-if="classifyingPromptKb">處理中...</span>
+            <span v-else>✨ AI 批次自動標籤</span>
+          </button>
+          <button class="btn-ghost" @click="fetchPromptKb">刷新清單</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>標題 (Title)</th>
+              <th>標籤 (Tags)</th>
+              <th>狀態</th>
+              <th>建立時間</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="entry in promptKbEntries" :key="entry.id">
+              <td>#{{ entry.id }}</td>
+              <td><strong>{{ entry.title }}</strong></td>
+              <td>
+                <span v-for="tag in entry.tags" :key="tag" class="category-badge" style="margin-right:0.25rem;">{{ tag }}</span>
+              </td>
+              <td>
+                <span :class="entry.is_public ? 'badge-success' : 'badge-danger'" style="padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; background: rgba(56, 189, 248, 0.1); color: #38bdf8;">
+                  {{ entry.is_public ? '公開' : '隱藏' }}
+                </span>
+              </td>
+              <td>{{ new Date(entry.created_at).toLocaleDateString() }}</td>
+              <td class="actions">
+                <button class="btn-action edit" @click="editPromptKb(entry)">編輯</button>
+                <button class="btn-action delete" @click="deletePromptKb(entry)">刪除</button>
+              </td>
+            </tr>
+            <tr v-if="promptKbEntries.length === 0" class="empty-row">
+              <td colspan="6">尚無任何提示詞知識庫資料</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 提示詞知識庫編輯 Modal -->
+    <Teleport to="body">
+      <div v-if="editingPromptKb" class="modal-overlay" @click.self="cancelEditPromptKb">
+        <div class="modal-card card shadow-lg">
+          <div class="modal-header">
+            <h3>編輯提示詞知識庫：{{ editingPromptKb.title }}</h3>
+          </div>
+          
+          <div class="modal-body">
+            <div class="form-group mb-4">
+              <label class="form-label">標題 <span class="required">*</span></label>
+              <input v-model="promptKbForm.title" class="form-input" placeholder="名稱" />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">描述</label>
+              <textarea v-model="promptKbForm.description" rows="2" class="form-input" placeholder="簡短描述..."></textarea>
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">標籤 (Tags)</label>
+              <input v-model="promptKbForm.tagsInput" class="form-input" placeholder="多個以逗號隔開" />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">完整內容 <span class="required">*</span></label>
+              <textarea v-model="promptKbForm.prompt_content" rows="6" class="form-input" placeholder="Prompt 內容..."></textarea>
+            </div>
+            <div class="form-group" style="display:flex; align-items:center;">
+              <input type="checkbox" id="kb-public" v-model="promptKbForm.is_public" style="margin-right: 0.5rem;">
+              <label class="form-label" for="kb-public" style="margin-bottom: 0;">公開分享 (設為隱藏則前台不可見)</label>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-ghost" @click="cancelEditPromptKb">取消</button>
+            <button class="btn-primary" @click="savePromptKbEdit" :disabled="saving || !promptKbForm.title || !promptKbForm.prompt_content">
+              {{ saving ? '儲存中...' : '儲存修改' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- 技能編輯 Modal -->
     <Teleport to="body">
@@ -746,6 +907,51 @@
         </div>
       </div>
     </Teleport>
+    <!-- Prompt Setting 編輯/新增 Modal -->
+    <Teleport to="body">
+      <div v-if="editingPrompt || isCreatingPrompt" class="modal-overlay" @click.self="cancelEditPrompt">
+        <div class="modal-card card shadow-lg">
+          <div class="modal-header">
+            <h3>{{ isCreatingPrompt ? '新增提示詞設定' : '編輯設定：' + editingPrompt.name }}</h3>
+          </div>
+          
+          <div class="modal-body">
+            <div class="form-group mb-4">
+              <label class="form-label">分類 (Category)</label>
+              <select v-model="promptForm.category" class="form-input">
+                <option v-for="cat in promptCategories.filter(c => c.value !== '')" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
+              </select>
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">內容名稱 (Name)</label>
+              <input v-model="promptForm.name" class="form-input" placeholder="例如: 客觀冷靜" />
+            </div>
+            <div class="form-group mb-4" v-if="promptForm.category === 'role' || promptForm.category === 'scenario'">
+              <label class="form-label">選項群組名稱 (Group Name, 選擇性)</label>
+              <input v-model="promptForm.group_name" class="form-input" placeholder="例如: 技術與開發" />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">排序權重 (Order Index)</label>
+              <input type="number" v-model="promptForm.order_index" class="form-input" placeholder="0" />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">啟用狀態 (Is Active)</label>
+              <label class="form-switch" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                <input type="checkbox" v-model="promptForm.is_active" />
+                <span>啟用此設定項目就在前端顯示</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-ghost" @click="cancelEditPrompt">取消</button>
+            <button class="btn-primary" @click="savePromptEdit" :disabled="saving">
+              {{ saving ? '處理中...' : (isCreatingPrompt ? '確認建立' : '確認修改') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -842,6 +1048,213 @@ const userForm = reactive({ username: '', email: '', password: '', role: 'user',
 const ALL_PERMISSIONS = ['skill:create', 'skill:update', 'skill:delete', 'admin:access']
 
 const saving = ref(false)
+
+// 提示詞管理狀態與操作
+const prompts = ref([])
+const promptCategoryFilter = ref('')
+const editingPrompt = ref(null)
+const isCreatingPrompt = ref(false)
+const promptForm = reactive({ category: 'scenario', name: '', group_name: '', order_index: 0, content: '', is_active: true })
+
+// 提示詞知識庫管理狀態與操作
+const promptKbEntries = ref([])
+const promptKbSearchQuery = ref('')
+const editingPromptKb = ref(null)
+const promptKbForm = reactive({ title: '', description: '', tagsInput: '', prompt_content: '', is_public: true })
+const classifyingPromptKb = ref(false)
+
+const promptCategories = [
+  { value: '', label: '全部' },
+  { value: 'scenario', label: '任務類型' },
+  { value: 'role', label: '扮演角色' },
+  { value: 'format', label: '回覆格式' },
+  { value: 'tone', label: '語氣與風格' },
+  { value: 'constraint', label: '限制與要求' },
+]
+
+async function fetchPrompts() {
+  try {
+    const res = await fetch(`/api/admin/prompt-settings${promptCategoryFilter.value ? '?category=' + promptCategoryFilter.value : ''}`, {
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) prompts.value = await res.json()
+  } catch (e) {
+    console.error('Fetch prompts error:', e)
+  }
+}
+
+function createPrompt() {
+  isCreatingPrompt.value = true
+  editingPrompt.value = null
+  promptForm.category = promptCategoryFilter.value || 'scenario'
+  promptForm.name = ''
+  promptForm.group_name = ''
+  promptForm.order_index = 0
+  promptForm.content = ''
+  promptForm.is_active = true
+}
+
+function editPrompt(prompt) {
+  isCreatingPrompt.value = false
+  editingPrompt.value = prompt
+  promptForm.category = prompt.category
+  promptForm.name = prompt.name
+  promptForm.group_name = prompt.group_name || ''
+  promptForm.order_index = prompt.order_index || 0
+  promptForm.content = prompt.content || ''
+  promptForm.is_active = prompt.is_active !== false
+}
+
+function cancelEditPrompt() {
+  editingPrompt.value = null
+  isCreatingPrompt.value = false
+}
+
+async function savePromptEdit() {
+  saving.value = true
+  try {
+    const isNew = isCreatingPrompt.value
+    const url = isNew ? '/api/admin/prompt-settings' : `/api/admin/prompt-settings/${editingPrompt.value.id}`
+    const method = isNew ? 'POST' : 'PUT'
+    
+    // 轉型
+    const payload = { ...promptForm, order_index: parseInt(promptForm.order_index) }
+
+    const res = await fetch(url, {
+      method: method,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify(payload)
+    })
+    
+    if (res.ok) {
+      await fetchPrompts()
+      cancelEditPrompt()
+    } else {
+      const err = await res.json()
+      alert(err.message || '操作失敗')
+    }
+  } catch (e) {
+    alert('操作失敗')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function deletePrompt(prompt) {
+  if (!confirm(`確定要刪除設定 "${prompt.name}" 嗎？`)) return
+  try {
+    const res = await fetch(`/api/admin/prompt-settings/${prompt.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) fetchPrompts()
+  } catch (e) {
+    alert('刪除失敗')
+  }
+}
+
+async function fetchPromptKb() {
+  try {
+    const res = await fetch('/api/admin/prompt-knowledge', {
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+        let data = await res.json()
+        if (promptKbSearchQuery.value) {
+           const q = promptKbSearchQuery.value.toLowerCase()
+           data = data.filter(e => e.title.toLowerCase().includes(q) || e.prompt_content.toLowerCase().includes(q))
+        }
+        promptKbEntries.value = data
+    }
+  } catch (e) {
+    console.error('Fetch prompt knowledge error:', e)
+  }
+}
+
+async function classifyAllPromptKb() {
+  if (!confirm('將使用 AI 自動分析所有知識庫文章並加上特徵標籤，是否繼續？')) return
+  classifyingPromptKb.value = true
+  try {
+    const res = await fetch('/api/admin/prompt-knowledge/classify-all', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      alert(`分類完成！成功為 ${data.classified} 筆知識庫加上新標籤，跳過 ${data.skipped} 筆已具備完整標籤的項目。`)
+      await fetchPromptKb()
+    } else {
+      const err = await res.json()
+      alert(err.message || '自動標籤失敗')
+    }
+  } catch (e) {
+    alert('自動標籤失敗')
+  } finally {
+    classifyingPromptKb.value = false
+  }
+}
+
+function editPromptKb(entry) {
+  editingPromptKb.value = entry
+  promptKbForm.title = entry.title
+  promptKbForm.description = entry.description || ''
+  promptKbForm.tagsInput = (entry.tags || []).join(', ')
+  promptKbForm.prompt_content = entry.prompt_content
+  promptKbForm.is_public = entry.is_public
+}
+
+function cancelEditPromptKb() {
+  editingPromptKb.value = null
+}
+
+async function savePromptKbEdit() {
+  saving.value = true
+  try {
+    const payload = {
+      title: promptKbForm.title,
+      description: promptKbForm.description,
+      tags: promptKbForm.tagsInput.split(',').map(t => t.trim()).filter(Boolean),
+      prompt_content: promptKbForm.prompt_content,
+      is_public: promptKbForm.is_public
+    }
+
+    const res = await fetch(`/api/admin/prompt-knowledge/${editingPromptKb.value.id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify(payload)
+    })
+    
+    if (res.ok) {
+      await fetchPromptKb()
+      cancelEditPromptKb()
+    } else {
+      alert('儲存失敗')
+    }
+  } catch (e) {
+    alert('操作失敗')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function deletePromptKb(entry) {
+  if (!confirm(`確定要刪除設定 "${entry.title}" 嗎？`)) return
+  try {
+    const res = await fetch(`/api/admin/prompt-knowledge/${entry.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) fetchPromptKb()
+  } catch (e) {
+    alert('刪除失敗')
+  }
+}
 
 async function fetchData(page = 1) {
   skillPagination.page = page
@@ -1020,6 +1433,10 @@ function debouncedFetchMcps() {
 watch(currentTab, (newTab) => {
   if (newTab === 'users') fetchUsers()
   else if (newTab === 'mcps') fetchMcps()
+  else if (newTab === 'docker') fetchDockerRepos()
+  else if (newTab === 'npm') fetchNpmPackages()
+  else if (newTab === 'prompts') fetchPrompts()
+  else if (newTab === 'prompt-kb') fetchPromptKb()
   else fetchData()
 })
 
@@ -1453,6 +1870,7 @@ onMounted(() => {
   else if (currentTab.value === 'mcps') fetchMcps(1)
   else if (currentTab.value === 'docker') fetchDockerRepos(1)
   else if (currentTab.value === 'npm') fetchNpmPackages(1)
+  else if (currentTab.value === 'prompts') fetchPrompts()
 })
 
 watch(currentTab, (newTab) => {
@@ -1460,266 +1878,674 @@ watch(currentTab, (newTab) => {
   else if (newTab === 'mcps') fetchMcps(1)
   else if (newTab === 'docker') fetchDockerRepos(1)
   else if (newTab === 'npm') fetchNpmPackages(1)
+  else if (newTab === 'prompts') fetchPrompts()
   else fetchData(1)
 })
 </script>
 
 <style scoped>
-.admin-page { padding: 2rem; max-width: 1200px; margin: 0 auto; }
-.admin-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
-.subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-top: 0.3rem; }
+/* ── Refined Industrial Admin Dashboard ── */
+.admin-page {
+  padding: 2.5rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
+  color: var(--text-primary);
+}
 
-.tabs-nav { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1px; }
+/* Header & Typography */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+}
+
+.admin-header::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  left: -50px;
+  right: -50px;
+  bottom: 0;
+  background: radial-gradient(circle at top left, rgba(37, 164, 100, 0.04), transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.header-content h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.4rem 0;
+  color: #fff;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+/* Stats Precision Instruments */
+.stats-cards {
+  display: flex;
+  gap: 1.2rem;
+}
+
+.stat-card {
+  background: rgba(22, 27, 34, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1.2rem 1.5rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.8rem;
+  font-weight: 400;
+  color: #fff;
+  line-height: 1;
+}
+
+/* Editorial Tabs Navigation */
+.tabs-nav {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 0;
+}
+
 .tabs-nav button {
-  padding: 0.8rem 1.5rem; border: none; background: transparent; color: var(--text-muted);
-  font-weight: 600; cursor: pointer; transition: all 0.2s; border-bottom: 2px solid transparent;
+  padding: 0 0 1rem 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  position: relative;
+}
+
+.tabs-nav button:hover {
+  color: var(--text-primary);
+}
+
+.tabs-nav button.active {
+  color: #fff;
+  font-weight: 600;
+}
+
+.tabs-nav button::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: left right;
+}
+
+.tabs-nav button.active::after {
+  transform: scaleX(1);
+}
+
+/* Main Content Area */
+.admin-content {
+  padding: 2rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: visible;
+}
+
+/* Toolbar & Search */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-right, .toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-shrink: 0;
+}
+
+.search-box {
+  flex: 1;
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.search-box:focus-within {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.search-box .icon {
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
-.tabs-nav button:hover { color: var(--text-primary); }
-.tabs-nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-.stats-cards { display: flex; gap: 1rem; }
-.stat-card {
-  background: var(--bg-card); border: 1px solid var(--border); padding: 1rem 1.2rem;
-  border-radius: 12px; display: flex; flex-direction: column; min-width: 130px;
+.search-box input {
+  background: transparent;
+  border: none;
+  color: #fff;
+  padding: 0.75rem 0;
+  width: 100%;
+  outline: none;
+  font-size: 0.9rem;
+  font-weight: 400;
 }
-.stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
-.stat-value { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+.search-box input::placeholder {
+  color: var(--text-muted);
+}
 
-.admin-content { padding: 1.5rem; background: var(--bg-secondary); border-color: var(--border-subtle); overflow: hidden; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; gap: 1rem; flex-wrap: wrap; }
-.toolbar-right { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
-.search-box { flex: 1; min-width: 180px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0 1rem; display: flex; align-items: center; gap: 0.6rem; }
-.search-box input { background: transparent; border: none; color: #fff; padding: 0.6rem 0; width: 100%; outline: none; font-size: 0.9rem; }
-
-/* 每頁筆數 */
-.per-page-wrap { display: flex; align-items: center; gap: 0.4rem; }
-.per-page-label { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
-.per-page-select {
-  padding: 0.3rem 0.6rem;
-  border-radius: 6px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
+/* Per Page Dropdown & View Toggles */
+.per-page-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.per-page-label {
   font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.per-page-select {
+  padding: 0.4rem 2rem 0.4rem 0.8rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03) url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%238b949e%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E') no-repeat right 0.5rem center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font-size: 0.85rem;
   outline: none;
   cursor: pointer;
   appearance: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 .per-page-select:focus { border-color: var(--accent); }
 
-/* AI 自動分類按鈕 */
-.btn-ai-classify {
-  padding: 0.3rem 0.8rem;
-  border-radius: 7px;
-  border: 1px solid var(--accent);
-  background: var(--accent-dim);
-  color: var(--accent);
-  font-size: 0.8rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.btn-ai-classify:hover:not(:disabled) { background: var(--accent); color: #000; }
-.btn-ai-classify:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* 分類下拉 */
-.category-cell { min-width: 140px; }
-.category-select {
-  width: 100%;
-  padding: 0.25rem 0.5rem;
+.view-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  outline: none;
-  cursor: pointer;
-  appearance: none;
-  min-width: 130px;
+  padding: 2px;
 }
-.category-select:focus { border-color: var(--accent); }
-.card-category { margin-bottom: 0.2rem; }
-.card-category .category-select { min-width: unset; }
-
-
-/* 視圖切換 */
-.view-toggle { display: flex; gap: 2px; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
 .view-btn {
-  padding: 0.3rem 0.5rem;
+  padding: 0.4rem 0.6rem;
   background: transparent;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  display: flex;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+.view-btn:hover { color: var(--text-primary); }
+.view-btn.active { background: rgba(255, 255, 255, 0.1); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+
+/* Buttons Enhancement */
+.btn-primary {
+  background: linear-gradient(180deg, var(--accent) 0%, #1e8751 100%);
+  border: 1px solid #28b86f;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 2px 4px rgba(0,0,0,0.2);
+  color: #fff;
+  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
 }
-.view-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
-.view-btn.active { background: var(--accent-dim); color: var(--accent); }
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #28b86f 0%, #20965a 100%);
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 8px rgba(0,0,0,0.3);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+}
 
-/* 卡片視圖 */
+.btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+  font-weight: 500;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-ai-classify {
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  border: 1px solid rgba(37, 164, 100, 0.4);
+  background: rgba(37, 164, 100, 0.08);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.btn-ai-classify:hover:not(:disabled) {
+  background: rgba(37, 164, 100, 0.15);
+  border-color: var(--accent);
+}
+
+/* Batch Operations Bar */
+.batch-bar {
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  padding: 0.75rem 1.2rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  animation: fadeUp 0.2s ease-out;
+}
+.batch-info { color: #e2e8f0; font-size: 0.9rem; }
+.btn-select-all { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #cbd5e1; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: background 0.15s; }
+.btn-select-all:hover { background: rgba(255,255,255,0.05); }
+.btn-batch-delete { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; font-weight: 600; transition: all 0.15s; }
+.btn-batch-delete:hover:not(:disabled) { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+.btn-batch-cancel { background: transparent; border: none; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; margin-left: auto; }
+.btn-batch-cancel:hover { color: #fff; text-decoration: underline; }
+
+/* Data Tables */
+.table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(13, 17, 23, 0.4);
+}
+.admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+.admin-table th {
+  padding: 1rem 1.2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  white-space: nowrap;
+}
+.admin-table td {
+  padding: 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  font-size: 0.9rem;
+  vertical-align: middle;
+  transition: background 0.15s ease;
+}
+.admin-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.admin-table tbody tr.row-selected td {
+  background: rgba(37, 164, 100, 0.05);
+}
+.admin-table tbody tr.row-selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Custom Checkbox */
+.cb-col { width: 40px; text-align: center; }
+.batch-cb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+.batch-cb:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.batch-cb:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Specific Cell Styling */
+.skill-name-cell {
+  display: flex; align-items: center; gap: 0.8rem;
+}
+.skill-name-cell .skill-name {
+  font-weight: 600;
+  color: #fff;
+}
+.category-select {
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03) url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%238b949e%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E') no-repeat right 0.5rem center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  appearance: none;
+  cursor: pointer;
+  min-width: 130px;
+}
+.category-select:focus { border-color: var(--accent); }
+
+.tag-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.tag {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+code {
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(255,255,255,0.05);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+/* Action Buttons */
+.actions { display: flex; gap: 0.5rem; }
+.btn-action {
+  background: transparent;
+  border: none;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+.btn-action.edit { color: #60a5fa; }
+.btn-action.edit:hover { background: rgba(96, 165, 250, 0.1); }
+.btn-action.delete { color: #f87171; }
+.btn-action.delete:hover { background: rgba(248, 113, 113, 0.1); }
+
+/* Grid Cards (Skills & MCPs) */
 .skill-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.2rem;
+  margin-top: 1rem;
 }
-.cards-empty {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 3rem;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
+
 .skill-card-admin {
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1rem;
+  background: rgba(22, 27, 34, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1.2rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  gap: 0.8rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .skill-card-admin:hover {
-  border-color: rgba(37,164,100,0.4);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  background: rgba(22, 27, 34, 0.8);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  transform: translateY(-2px);
 }
-.card-head { display: flex; align-items: flex-start; gap: 0.6rem; }
-.card-icon { font-size: 1.4rem; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.card-head { display: flex; align-items: center; gap: 0.8rem; }
+.card-icon { font-size: 1.6rem; }
 .card-meta { flex: 1; min-width: 0; }
-.card-name {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.card-author { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
-.card-version {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--accent);
-  background: var(--accent-dim);
-  padding: 2px 6px;
+.card-name { font-weight: 600; color: #fff; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-author { color: var(--text-muted); font-size: 0.8rem; margin-top: 2px;}
+.card-version { font-size: 0.75rem; color: var(--accent); background: var(--accent-dim); padding: 2px 6px; border-radius: 4px;}
+.card-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.4rem 0; min-height: 22px;}
+.no-tag { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+.card-stats { color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.6rem;}
+.card-actions { display: flex; gap: 0.8rem; margin-top: 0.2rem;  }
+
+/* Role & Transport Badges */
+.role-badge, .transport-badge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
   border-radius: 4px;
-  flex-shrink: 0;
-  align-self: flex-start;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
-.card-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; min-height: 22px; }
-.card-tags .tag { font-size: 0.65rem; }
-.no-tag { font-size: 0.72rem; color: var(--text-muted); }
-.card-stats { font-size: 0.75rem; color: var(--text-muted); }
-.card-actions { display: flex; gap: 0.4rem; margin-top: 0.2rem; }
+.role-badge.admin { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+.role-badge.maintainer { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.3); }
+.role-badge.user { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+.transport-badge.stdio { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+.transport-badge.sse { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
 
-.admin-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.admin-table th { text-align: left; padding: 0.8rem 1rem; border-bottom: 2px solid var(--border); color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; }
-.admin-table td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border-subtle); }
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.pagination button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.85rem;
+  transition: all 0.15s ease;
+}
+.pagination button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255,255,255,0.2);
+}
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.page-info {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
 
-.role-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; }
-.role-badge.admin { background: rgba(168, 85, 247, 0.2); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); }
-.role-badge.maintainer { background: rgba(37, 164, 100, 0.2); color: var(--accent); border: 1px solid rgba(37, 164, 100, 0.3); }
-.role-badge.user { background: rgba(107, 114, 128, 0.2); color: var(--text-muted); }
+/* Modal Overlay & Card (Glassmorphism) */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease-out;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-.permission-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; background: var(--bg-primary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); }
-.checkbox-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer; }
+.modal-card {
+  background: #161b22;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  padding: 2rem;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-header h3 {
+  margin: 0 0 1.5rem 0;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 0.8rem;
+}
+
+.form-group { margin-bottom: 1.2rem; }
+.form-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.form-input, .custom-select {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+.form-input:focus, .custom-select:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.form-input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.permission-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  background: rgba(255,255,255,0.02);
+  padding: 1rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
 .checkbox-item input { accent-color: var(--accent); }
 
-.custom-select { width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 1rem; color: #fff; outline: none; appearance: none; }
-
-.modal-card { width: 100%; max-width: 500px; padding: 2rem; border-radius: 16px; background: var(--bg-secondary); border: 1px solid var(--border); }
-.modal-header { margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem; }
-.modal-header h3 { font-size: 1.25rem; font-weight: 700; color: #fff; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(13, 17, 23, 0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(8px); padding: 1rem; overflow-y: auto; }
-.modal-footer { display: flex; justify-content: flex-end; gap: 0.8rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); }
-
-.form-group { display: flex; flex-direction: column; gap: 0.5rem; }
-.form-label { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
-.form-input {
-  width: 100%; padding: 0.75rem 1rem; background: var(--bg-primary); 
-  border: 1px solid var(--border); border-radius: 8px; color: #fff; 
-  outline: none; transition: all 0.2s; font-size: 0.9rem;
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
 }
-.form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2); }
-textarea.form-input { resize: vertical; min-height: 100px; }
 
-.mb-4 { margin-bottom: 1rem; }
-.shadow-lg { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3); }
-
-.tag { font-size: 0.65rem; padding: 1px 6px; }
-.btn-action { padding: 4px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.75rem; font-weight: 600; transition: all 0.2s; }
-.btn-action.edit { background: rgba(34, 197, 94, 0.1); color: var(--accent); border: 1px solid rgba(34, 197, 94, 0.2); }
-.btn-action.edit:hover { background: var(--accent); color: #fff; }
-.btn-action.delete { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); margin-left: 0.5rem; }
-.btn-action.delete:hover { background: #ef4444; color: #fff; }
-
-.pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-subtle); }
-.pagination button { padding: 0.5rem 1rem; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-secondary); border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; font-weight: 600; }
-.pagination button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-.pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-.page-info { font-size: 0.85rem; color: var(--text-muted); }
-
-.transport-badge { font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; }
-.transport-badge.sse { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
-.transport-badge.stdio { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
-
-.text-muted { color: var(--text-muted); }
-.text-xs { font-size: 0.75rem; }
-
-/* ── 批次刪除 ── */
-.cb-col { width: 36px; text-align: center; padding: 0 6px !important; }
-.batch-cb {
-  width: 16px; height: 16px; cursor: pointer;
-  accent-color: var(--accent);
-}
-.row-selected { background: rgba(34, 197, 94, 0.05) !important; }
-.row-selected td { color: var(--text-primary); }
-
-.batch-bar {
-  display: flex; align-items: center; gap: 0.75rem;
-  background: var(--bg-card);
-  border: 1px solid rgba(34, 197, 94, 0.35);
-  border-radius: 10px;
-  padding: 0.65rem 1rem;
-  margin-bottom: 0.75rem;
-  animation: batchBarIn 0.2s ease;
-}
-.mcp-batch-bar { border-color: rgba(249, 115, 22, 0.35); }
-@keyframes batchBarIn {
-  from { opacity: 0; transform: translateY(-6px); }
+/* Animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.batch-info { font-size: 0.85rem; color: var(--text-secondary); flex: 1; }
-.batch-info strong { color: var(--accent); }
-.mcp-batch-bar .batch-info strong { color: #f97316; }
+.fade-up { animation: fadeUp 0.45s ease both; }
 
-.btn-select-all {
-  padding: 4px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
-  background: rgba(34, 197, 94, 0.1); color: var(--accent);
-  border: 1px solid rgba(34, 197, 94, 0.25);
-  transition: background 0.15s;
+/* Empty state */
+.empty-row td, .cards-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 4rem;
+  font-size: 0.95rem;
 }
-.btn-select-all:hover { background: rgba(34, 197, 94, 0.2); }
 
-.btn-batch-delete {
-  padding: 4px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
-  background: rgba(239, 68, 68, 0.15); color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  transition: background 0.15s;
-}
-.btn-batch-delete:hover:not(:disabled) { background: #ef4444; color: #fff; }
-.btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Utility */
+.mb-4 { margin-bottom: 1rem; }
+.text-xs { font-size: 0.75rem; }
+.text-muted { color: var(--text-muted); }
 
-.btn-batch-cancel {
-  padding: 4px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
-  background: transparent; color: var(--text-muted);
-  border: 1px solid var(--border);
-  transition: all 0.15s;
-}
-.btn-batch-cancel:hover { color: var(--text-primary); border-color: var(--text-muted); }
 </style>
 

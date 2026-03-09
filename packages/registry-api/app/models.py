@@ -265,3 +265,81 @@ class NpmPackage(db.Model):
 
     def __repr__(self):
         return f"<NpmPackage {self.name}>"
+
+class PromptSetting(db.Model):
+    """Configuration settings for the Prompt Generator."""
+
+    __tablename__ = "prompt_settings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(50), nullable=False, index=True) # scenario, role, format, tone, constraint
+    name = db.Column(db.String(100), nullable=False)
+    group_name = db.Column(db.String(100), nullable=True) # Extraneous grouping for roles
+    content = db.Column(db.Text, nullable=True) # Optional additional content or description
+    is_active = db.Column(db.Boolean, default=True)
+    order_index = db.Column(db.Integer, default=0) # For custom sorting
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    def to_dict(self):
+        def format_date(dt):
+            if dt is None: return None
+            return dt.isoformat() if hasattr(dt, "isoformat") else str(dt)
+        
+        return {
+            "id": self.id,
+            "category": self.category,
+            "name": self.name,
+            "group_name": self.group_name,
+            "content": self.content,
+            "is_active": self.is_active,
+            "order_index": self.order_index,
+            "created_at": format_date(self.created_at),
+            "updated_at": format_date(self.updated_at),
+        }
+
+    def __repr__(self):
+        return f"<PromptSetting {self.category}:{self.name}>"
+
+class PromptKnowledge(db.Model):
+    """Knowledge base for storing and sharing generated prompts."""
+
+    __tablename__ = "prompt_knowledge"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    prompt_content = db.Column(db.Text, nullable=False)
+    tags = db.Column(db.String(255), nullable=True) # comma-separated tags
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True) # Optional for now
+    is_public = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    def to_dict(self):
+        def format_date(dt):
+            if dt is None: return None
+            return dt.isoformat() if hasattr(dt, "isoformat") else str(dt)
+        
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "prompt_content": self.prompt_content,
+            "tags": self.tags.split(",") if self.tags else [],
+            "author_id": self.author_id,
+            "is_public": self.is_public,
+            "created_at": format_date(self.created_at),
+            "updated_at": format_date(self.updated_at),
+        }
+
+    def __repr__(self):
+        return f"<PromptKnowledge {self.title}>"

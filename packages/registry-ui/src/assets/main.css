@@ -35,6 +35,11 @@ body {
 
 a { color: inherit; text-decoration: none; }
 
+select option {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
 /* ── Scrollbar ───────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }

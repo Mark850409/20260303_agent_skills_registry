@@ -14,6 +14,12 @@ const routes = [
         meta: { title: '瀏覽 Skills — AI Skills & Apps Registry' }
     },
     {
+        path: '/prompt-generator',
+        name: 'PromptGenerator',
+        component: () => import('@/views/PromptGeneratorView.vue'),
+        meta: { title: '提示詞助理 — AI Skills & Apps Registry' }
+    },
+    {
         path: '/skills/:name',
         name: 'SkillDetail',
         component: () => import('@/views/SkillDetailView.vue'),
@@ -72,6 +78,12 @@ const routes = [
         name: 'NpmPackageDetail',
         component: () => import('@/views/NpmPackageDetailView.vue'),
         meta: { title: 'NPM 套件詳情 — AI Skills & Apps Registry' }
+    },
+    {
+        path: '/prompts/knowledge',
+        name: 'PromptKnowledge',
+        component: () => import('@/views/PromptKnowledgeView.vue'),
+        meta: { title: '提示詞知識庫 — AI Skills & Apps Registry' }
     }
 ]
 
