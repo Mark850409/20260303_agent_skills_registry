@@ -1,75 +1,125 @@
 <template>
-  <div class="admin-page fade-up">
-    <header class="admin-header">
-      <div class="header-content">
-        <h1>管理後台</h1>
-        <p class="subtitle">
-          <template v-if="currentTab === 'skills'">Registry 數據營運與管控中心</template>
-          <template v-else-if="currentTab === 'mcps'">MCP 服務註冊與分析中心</template>
-          <template v-else-if="currentTab === 'users'">系統帳號與權限核發中心</template>
-          <template v-else-if="currentTab === 'docker'">Docker 容器映像管理與儲存庫</template>
-          <template v-else-if="currentTab === 'npm'">NPM 套件管理與儲存庫</template>
-        </p>
+  <div class="admin-layout fade-up">
+    <aside class="admin-sidebar" :class="{ collapsed: isSidebarCollapsed }">
+      <div class="sidebar-header">
+        <div class="logo" v-if="!isSidebarCollapsed">
+          <span class="logo-icon">🧠</span>
+          <span class="logo-text">管理控制中心</span>
+        </div>
+        <button class="hamburger-btn" @click="isSidebarCollapsed = !isSidebarCollapsed">
+          <span class="icon">{{ isSidebarCollapsed ? '☰' : '✕' }}</span>
+        </button>
       </div>
-      <div class="stats-cards">
-        <template v-if="currentTab === 'skills'">
-          <div class="stat-card">
-            <span class="stat-label">總技能數</span>
-            <span class="stat-value">{{ stats.total_skills || 0 }}</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">累積下載</span>
-            <span class="stat-value">{{ stats.total_downloads || 0 }}</span>
-          </div>
-        </template>
-        <template v-else-if="currentTab === 'mcps'">
-          <div class="stat-card">
-            <span class="stat-label">總 MCP 數</span>
-            <span class="stat-value">{{ mcpPagination.total || 0 }}</span>
-          </div>
-        </template>
-        <template v-else-if="currentTab === 'users'">
-          <div class="stat-card">
-            <span class="stat-label">使用者總數</span>
-            <span class="stat-value">{{ userPagination.total || 0 }}</span>
-          </div>
-        </template>
-        <template v-else-if="currentTab === 'docker'">
-          <div class="stat-card">
-            <span class="stat-label">總倉庫數</span>
-            <span class="stat-value">{{ dockerPagination.total || 0 }}</span>
-          </div>
-        </template>
-        <template v-else-if="currentTab === 'npm'">
-          <div class="stat-card">
-            <span class="stat-label">總套件數</span>
-            <span class="stat-value">{{ npmPagination.total || 0 }}</span>
-          </div>
-        </template>
-        <template v-else-if="currentTab === 'prompts'">
-          <div class="stat-card">
-            <span class="stat-label">設定總數</span>
-            <span class="stat-value">{{ prompts.length }}</span>
-          </div>
-        </template>
-        <template v-else-if="currentTab === 'prompt-kb'">
-          <div class="stat-card">
-            <span class="stat-label">知識庫總數</span>
-            <span class="stat-value">{{ promptKbEntries.length }}</span>
-          </div>
-        </template>
-      </div>
-    </header>
 
-    <div class="tabs-nav">
-      <button :class="{ active: currentTab === 'skills' }" @click="currentTab = 'skills'">技能管理</button>
-      <button :class="{ active: currentTab === 'mcps' }" @click="currentTab = 'mcps'">MCP 管理</button>
-      <button :class="{ active: currentTab === 'users' }" @click="currentTab = 'users'">使用者管理</button>
-      <button :class="{ active: currentTab === 'docker' }" @click="currentTab = 'docker'">容器管理</button>
-      <button :class="{ active: currentTab === 'npm' }" @click="currentTab = 'npm'">NPM 管理</button>
-      <button :class="{ active: currentTab === 'prompts' }" @click="currentTab = 'prompts'">提示詞設定</button>
-      <button :class="{ active: currentTab === 'prompt-kb' }" @click="currentTab = 'prompt-kb'">提示詞知識庫</button>
-    </div>
+      <nav class="sidebar-nav">
+        <div class="nav-group">
+          <div class="group-title" v-if="!isSidebarCollapsed">核心管理</div>
+          <button :class="{ active: currentTab === 'skills' }" @click="currentTab = 'skills'" title="技能管理">
+            <span class="icon">🧩</span>
+            <span class="label" v-if="!isSidebarCollapsed">技能管理</span>
+          </button>
+          <button :class="{ active: currentTab === 'mcps' }" @click="currentTab = 'mcps'" title="MCP 管理">
+            <span class="icon">🔌</span>
+            <span class="label" v-if="!isSidebarCollapsed">MCP 管理</span>
+          </button>
+        </div>
+
+        <div class="nav-group">
+          <div class="group-title" v-if="!isSidebarCollapsed">外部儲存庫</div>
+          <button :class="{ active: currentTab === 'docker' }" @click="currentTab = 'docker'" title="容器管理">
+            <span class="icon">⚓</span>
+            <span class="label" v-if="!isSidebarCollapsed">容器管理</span>
+          </button>
+          <button :class="{ active: currentTab === 'npm' }" @click="currentTab = 'npm'" title="NPM 管理">
+            <span class="icon">📦</span>
+            <span class="label" v-if="!isSidebarCollapsed">NPM 管理</span>
+          </button>
+        </div>
+
+        <div class="nav-group">
+          <div class="group-title" v-if="!isSidebarCollapsed">提示詞工程</div>
+          <button :class="{ active: currentTab === 'prompts' }" @click="currentTab = 'prompts'" title="提示詞設定">
+            <span class="icon">✨</span>
+            <span class="label" v-if="!isSidebarCollapsed">提示詞設定</span>
+          </button>
+          <button :class="{ active: currentTab === 'prompt-kb' }" @click="currentTab = 'prompt-kb'" title="提示詞知識庫">
+            <span class="icon">💡</span>
+            <span class="label" v-if="!isSidebarCollapsed">提示詞知識庫</span>
+          </button>
+        </div>
+
+        <div class="nav-group">
+          <div class="group-title" v-if="!isSidebarCollapsed">系統管理</div>
+          <button :class="{ active: currentTab === 'users' }" @click="currentTab = 'users'" title="使用者管理">
+            <span class="icon">👤</span>
+            <span class="label" v-if="!isSidebarCollapsed">使用者管理</span>
+          </button>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="admin-main">
+      <div class="admin-page-inner">
+        <header class="admin-header">
+          <div class="header-content">
+            <h1>管理後台</h1>
+            <p class="subtitle">
+              <template v-if="currentTab === 'skills'">Registry 數據營運與管控中心</template>
+              <template v-else-if="currentTab === 'mcps'">MCP 服務註冊與分析中心</template>
+              <template v-else-if="currentTab === 'users'">系統帳號與權限核發中心</template>
+              <template v-else-if="currentTab === 'docker'">Docker 容器映像管理與儲存庫</template>
+              <template v-else-if="currentTab === 'npm'">NPM 套件管理與儲存庫</template>
+            </p>
+          </div>
+          <div class="stats-cards">
+            <template v-if="currentTab === 'skills'">
+              <div class="stat-card">
+                <span class="stat-label">總技能數</span>
+                <span class="stat-value">{{ stats.total_skills || 0 }}</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">累積下載</span>
+                <span class="stat-value">{{ stats.total_downloads || 0 }}</span>
+              </div>
+            </template>
+            <template v-else-if="currentTab === 'mcps'">
+              <div class="stat-card">
+                <span class="stat-label">總 MCP 數</span>
+                <span class="stat-value">{{ mcpPagination.total || 0 }}</span>
+              </div>
+            </template>
+            <template v-else-if="currentTab === 'users'">
+              <div class="stat-card">
+                <span class="stat-label">使用者總數</span>
+                <span class="stat-value">{{ userPagination.total || 0 }}</span>
+              </div>
+            </template>
+            <template v-else-if="currentTab === 'docker'">
+              <div class="stat-card">
+                <span class="stat-label">總倉庫數</span>
+                <span class="stat-value">{{ dockerPagination.total || 0 }}</span>
+              </div>
+            </template>
+            <template v-else-if="currentTab === 'npm'">
+              <div class="stat-card">
+                <span class="stat-label">總套件數</span>
+                <span class="stat-value">{{ npmPagination.total || 0 }}</span>
+              </div>
+            </template>
+            <template v-else-if="currentTab === 'prompts'">
+              <div class="stat-card">
+                <span class="stat-label">設定總數</span>
+                <span class="stat-value">{{ prompts.length }}</span>
+              </div>
+            </template>
+            <template v-else-if="currentTab === 'prompt-kb'">
+              <div class="stat-card">
+                <span class="stat-label">知識庫總數</span>
+                <span class="stat-value">{{ promptKbEntries.length }}</span>
+              </div>
+            </template>
+          </div>
+        </header>
 
     <!-- 技能管理頁面 -->
     <div v-if="currentTab === 'skills'" class="admin-content card">
@@ -146,11 +196,23 @@
                   @change="toggleSelectAllSkills"
                 />
               </th>
-              <th>技能名稱</th>
-              <th>作者</th>
-              <th>分類</th>
+              <th @click="sortSkills('name')" class="sortable">
+                技能名稱
+                <span class="sort-icon">{{ skillSortField === 'name' ? (skillSortOrder === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+              </th>
+              <th @click="sortSkills('author')" class="sortable">
+                作者
+                <span class="sort-icon">{{ skillSortField === 'author' ? (skillSortOrder === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+              </th>
+              <th @click="sortSkills('category')" class="sortable">
+                分類
+                <span class="sort-icon">{{ skillSortField === 'category' ? (skillSortOrder === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+              </th>
               <th>標籤</th>
-              <th>下載次數</th>
+              <th @click="sortSkills('downloads')" class="sortable">
+                下載次數
+                <span class="sort-icon">{{ skillSortField === 'downloads' ? (skillSortOrder === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+              </th>
               <th>最新版本</th>
               <th>操作</th>
             </tr>
@@ -187,9 +249,11 @@
               </td>
               <td>{{ skill.downloads }}</td>
               <td><code>{{ skill.latest_version }}</code></td>
-              <td class="actions">
-                <button class="btn-action edit" @click="editSkill(skill)">編輯</button>
-                <button class="btn-action delete" @click="confirmDelete(skill)">刪除</button>
+              <td class="actions-col">
+                <div class="actions-container">
+                  <button class="btn-action edit" @click="editSkill(skill)">編輯</button>
+                  <button class="btn-action delete" @click="confirmDelete(skill)">刪除</button>
+                </div>
               </td>
             </tr>
             <tr v-if="skills.length === 0" class="empty-row">
@@ -574,15 +638,27 @@
     <!-- 提示詞管理頁面 -->
     <div v-else-if="currentTab === 'prompts'" class="admin-content card">
       <div class="toolbar">
-        <div class="search-box">
-          <span class="icon">🔍</span>
-          <select v-model="promptCategoryFilter" @change="fetchPrompts" class="form-input" style="padding-left: 2.5rem; max-width: 200px;">
+        <div class="toolbar-left" style="display: flex; gap: 1rem; flex: 1;">
+          <div class="search-box" style="max-width: 300px;">
+            <span class="icon">🔍</span>
+            <input v-model="promptSearchQuery" placeholder="搜尋名稱或內容..." @input="debouncedFetchPrompts" />
+          </div>
+          <select v-model="promptCategoryFilter" @change="applyPromptFilters(1)" class="category-select" style="min-width: 160px;">
+            <option value="">全部</option>
             <option v-for="cat in promptCategories" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
           </select>
         </div>
         <div class="toolbar-actions">
+          <div class="per-page-wrap">
+            <span class="per-page-label">每頁</span>
+            <select class="per-page-select" v-model="promptPerPage" @change="applyPromptFilters(1)">
+              <option :value="5">5 筆</option>
+              <option :value="10">10 筆</option>
+              <option :value="20">20 筆</option>
+            </select>
+          </div>
           <button class="btn-primary" @click="createPrompt">+ 新增設定</button>
-          <button class="btn-ghost" @click="fetchPrompts">刷新清單</button>
+          <button class="btn-ghost" @click="fetchPrompts(1)">刷新清單</button>
         </div>
       </div>
 
@@ -590,11 +666,26 @@
         <table class="admin-table">
           <thead>
             <tr>
-              <th>分類 (Category)</th>
-              <th>名稱 / 內容 (Name)</th>
-              <th>群組 (Group)</th>
-              <th>狀態</th>
-              <th>排序權重</th>
+              <th @click="sortPrompts('category')" class="sortable">
+                分類 (Category)
+                <span class="sort-icon">{{ promptSortField === 'category' ? (promptSortOrder === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+              </th>
+              <th @click="sortPrompts('name')" class="sortable">
+                名稱 / 內容 (Name)
+                <span class="sort-icon">{{ promptSortField === 'name' ? (promptSortOrder === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+              </th>
+              <th @click="sortPrompts('group_name')" class="sortable">
+                群組 (Group)
+                <span class="sort-icon">{{ promptSortField === 'group_name' ? (promptSortOrder === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+              </th>
+              <th @click="sortPrompts('is_active')" class="sortable">
+                狀態
+                <span class="sort-icon">{{ promptSortField === 'is_active' ? (promptSortOrder === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+              </th>
+              <th @click="sortPrompts('order_index')" class="sortable">
+                排序權重
+                <span class="sort-icon">{{ promptSortField === 'order_index' ? (promptSortOrder === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+              </th>
               <th>操作</th>
             </tr>
           </thead>
@@ -603,17 +694,21 @@
               <td>
                 <span class="category-badge">{{ promptCategories.find(c => c.value === prompt.category)?.label || prompt.category }}</span>
               </td>
-              <td><strong>{{ prompt.name }}</strong></td>
+              <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <strong>{{ prompt.name }}</strong>
+              </td>
               <td>{{ prompt.group_name || '-' }}</td>
               <td>
-                <span :class="prompt.is_active ? 'badge-success' : 'badge-danger'" style="padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; background: rgba(56, 189, 248, 0.1); color: #38bdf8;">
+                <span :class="prompt.is_active ? 'badge-active' : 'badge-inactive'">
                   {{ prompt.is_active ? '啟用' : '停用' }}
                 </span>
               </td>
-              <td>{{ prompt.order_index }}</td>
-              <td class="actions">
-                <button class="btn-action edit" @click="editPrompt(prompt)">編輯</button>
-                <button class="btn-action delete" @click="deletePrompt(prompt)">刪除</button>
+              <td><code>{{ prompt.order_index }}</code></td>
+              <td class="actions-col">
+                <div class="actions-container">
+                  <button class="btn-action edit" @click="editPrompt(prompt)">編輯</button>
+                  <button class="btn-action delete" @click="deletePrompt(prompt)">刪除</button>
+                </div>
               </td>
             </tr>
             <tr v-if="prompts.length === 0" class="empty-row">
@@ -621,6 +716,15 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- 提示詞分頁 -->
+      <div class="pagination" v-if="promptPagination.pages >= 1">
+        <button :disabled="promptPagination.page === 1" @click="applyPromptFilters(promptPagination.page - 1)">上一頁</button>
+        <span class="page-info">
+          第 {{ promptPagination.page }} / {{ promptPagination.pages }} 頁 (共 {{ promptPagination.total }} 筆，每頁 {{ promptPerPage }} 筆)
+        </span>
+        <button :disabled="promptPagination.page === promptPagination.pages" @click="applyPromptFilters(promptPagination.page + 1)">下一頁</button>
       </div>
     </div>
 
@@ -952,6 +1056,8 @@
         </div>
       </div>
     </Teleport>
+      </div>
+    </main>
   </div>
 </template>
 
@@ -961,6 +1067,7 @@ import { useAuthStore } from '@/store/auth'
 
 const authStore = useAuthStore()
 const currentTab = ref('skills')
+const isSidebarCollapsed = ref(false)
 const skills = ref([])
 const users = ref([])
 const stats = ref({})
@@ -977,9 +1084,13 @@ const dockerPerPage = ref(10)
 
 // 分頁狀態
 const skillPagination = reactive({ page: 1, total: 0, pages: 1 })
+const skillSortField = ref('name')
+const skillSortOrder = ref('asc')
 const userPagination = reactive({ page: 1, total: 0, pages: 1 })
 const dockerPagination = reactive({ page: 1, total: 0, pages: 1 })
 const npmPagination = reactive({ page: 1, total: 0, pages: 1 })
+const npmSortField = ref('created_at')
+const npmSortOrder = ref('desc')
 
 // Docker 倉庫狀態
 const dockerRepos = ref([])
@@ -1050,8 +1161,15 @@ const ALL_PERMISSIONS = ['skill:create', 'skill:update', 'skill:delete', 'admin:
 const saving = ref(false)
 
 // 提示詞管理狀態與操作
+const allPrompts = ref([])
 const prompts = ref([])
+const promptSearchQuery = ref('')
 const promptCategoryFilter = ref('')
+const promptSortField = ref('order_index')
+const promptSortOrder = ref('asc')
+const promptPagination = reactive({ page: 1, total: 0, pages: 1 })
+const promptPerPage = ref(10)
+
 const editingPrompt = ref(null)
 const isCreatingPrompt = ref(false)
 const promptForm = reactive({ category: 'scenario', name: '', group_name: '', order_index: 0, content: '', is_active: true })
@@ -1072,15 +1190,75 @@ const promptCategories = [
   { value: 'constraint', label: '限制與要求' },
 ]
 
-async function fetchPrompts() {
+async function fetchPrompts(page = 1) {
   try {
-    const res = await fetch(`/api/admin/prompt-settings${promptCategoryFilter.value ? '?category=' + promptCategoryFilter.value : ''}`, {
+    const res = await fetch(`/api/admin/prompt-settings`, {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
-    if (res.ok) prompts.value = await res.json()
+    if (res.ok) {
+        allPrompts.value = await res.json()
+        applyPromptFilters(page)
+    }
   } catch (e) {
     console.error('Fetch prompts error:', e)
   }
+}
+
+function applyPromptFilters(page = 1) {
+  promptPagination.page = page
+  let filtered = allPrompts.value
+
+  if (promptCategoryFilter.value) {
+    filtered = filtered.filter(p => p.category === promptCategoryFilter.value)
+  }
+
+  if (promptSearchQuery.value) {
+    const q = promptSearchQuery.value.toLowerCase()
+    filtered = filtered.filter(p => 
+      p.name.toLowerCase().includes(q) || 
+      (p.content && p.content.toLowerCase().includes(q)) ||
+      (p.group_name && p.group_name.toLowerCase().includes(q))
+    )
+  }
+
+  filtered.sort((a, b) => {
+    let valA = a[promptSortField.value]
+    let valB = b[promptSortField.value]
+    
+    if (typeof valA === 'string') valA = valA.toLowerCase()
+    if (typeof valB === 'string') valB = valB.toLowerCase()
+
+    if (valA < valB) return promptSortOrder.value === 'asc' ? -1 : 1
+    if (valA > valB) return promptSortOrder.value === 'asc' ? 1 : -1
+    return 0
+  })
+
+  promptPagination.total = filtered.length
+  promptPagination.pages = Math.ceil(filtered.length / promptPerPage.value) || 1
+  
+  if (promptPagination.page > promptPagination.pages) {
+    promptPagination.page = promptPagination.pages
+  }
+
+  const start = (promptPagination.page - 1) * promptPerPage.value
+  const end = start + promptPerPage.value
+  prompts.value = filtered.slice(start, end)
+}
+
+let promptTimeout = null
+function debouncedFetchPrompts() {
+  clearTimeout(promptTimeout)
+  promptTimeout = setTimeout(() => applyPromptFilters(1), 300)
+}
+
+function sortPrompts(field) {
+  if (promptSortField.value === field) {
+    promptSortOrder.value = promptSortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    promptSortField.value = field
+    promptSortOrder.value = 'asc'
+  }
+  applyPromptFilters(1)
 }
 
 function createPrompt() {
@@ -1260,8 +1438,15 @@ async function fetchData(page = 1) {
   skillPagination.page = page
   try {
     const headers = { 'Authorization': `Bearer ${authStore.token}` }
+    const params = new URLSearchParams({
+      q: searchQuery.value,
+      page: page,
+      per_page: skillPerPage.value,
+      sort: skillSortField.value,
+      order: skillSortOrder.value
+    })
     const [skillsRes, statsRes] = await Promise.all([
-      fetch(`/api/admin/skills?q=${searchQuery.value}&page=${page}&per_page=${skillPerPage.value}`, { headers }),
+      fetch(`/api/admin/skills?${params.toString()}`, { headers }),
       fetch('/api/skills/stats')
     ])
     if (skillsRes.status === 401) { authStore.logout(); return }
@@ -1275,6 +1460,16 @@ async function fetchData(page = 1) {
   } catch (e) {
     console.error('Failed to fetch admin skills', e)
   }
+}
+
+function sortSkills(field) {
+  if (skillSortField.value === field) {
+    skillSortOrder.value = skillSortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    skillSortField.value = field
+    skillSortOrder.value = 'asc'
+  }
+  fetchData(1)
 }
 
 async function fetchUsers(page = 1) {
@@ -1870,7 +2065,7 @@ onMounted(() => {
   else if (currentTab.value === 'mcps') fetchMcps(1)
   else if (currentTab.value === 'docker') fetchDockerRepos(1)
   else if (currentTab.value === 'npm') fetchNpmPackages(1)
-  else if (currentTab.value === 'prompts') fetchPrompts()
+  else if (currentTab.value === 'prompts') fetchPrompts(1)
 })
 
 watch(currentTab, (newTab) => {
@@ -1885,12 +2080,165 @@ watch(currentTab, (newTab) => {
 
 <style scoped>
 /* ── Refined Industrial Admin Dashboard ── */
-.admin-page {
-  padding: 2.5rem;
-  max-width: 1280px;
-  margin: 0 auto;
-  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
+/* ── Admin Sidebar Layout ── */
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-primary);
   color: var(--text-primary);
+  font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
+}
+
+.admin-sidebar {
+  width: 260px;
+  background: #0d1117;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.admin-sidebar.collapsed {
+  width: 72px;
+}
+
+.sidebar-header {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+.sidebar-header .logo {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  overflow: hidden;
+}
+
+.logo-text {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  margin-left: auto;
+}
+
+.hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.sidebar-nav {
+  padding: 1.5rem 0.6rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Scrollbar styling for sidebar */
+.sidebar-nav::-webkit-scrollbar { width: 4px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+
+.nav-group {
+  margin-bottom: 2rem;
+}
+
+.group-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0 1rem 0.8rem;
+  opacity: 0.6;
+}
+
+.sidebar-nav button {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 4px;
+  position: relative;
+}
+
+.sidebar-nav button:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+
+.sidebar-nav button.active {
+  background: rgba(37, 164, 100, 0.1);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sidebar-nav button.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  height: 60%;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+
+.sidebar-nav button .icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.sidebar-nav button .label {
+  white-space: nowrap;
+  font-size: 0.95rem;
+}
+
+.admin-sidebar.collapsed .sidebar-nav button {
+  justify-content: center;
+  padding: 0.85rem 0;
+}
+
+.admin-main {
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.admin-page-inner {
+  padding: 2.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 /* Header & Typography */
@@ -2251,16 +2599,59 @@ watch(currentTab, (newTab) => {
   transition: background 0.15s ease;
 }
 .admin-table tbody tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.04) !important;
 }
 .admin-table tbody tr:last-child td {
   border-bottom: none;
 }
 .admin-table tbody tr.row-selected td {
-  background: rgba(37, 164, 100, 0.05);
+  background: rgba(37, 164, 100, 0.08);
 }
 .admin-table tbody tr.row-selected td:first-child {
-  box-shadow: inset 3px 0 0 var(--accent);
+  border-left: 3px solid var(--accent);
+}
+
+.sortable { cursor: pointer; user-select: none; transition: background 0.2s; }
+.sortable:hover { background: rgba(255,255,255,0.05); color: #fff; }
+.sort-icon { font-size: 0.7rem; margin-left: 0.4rem; opacity: 0.5; }
+
+.badge-active { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; background: rgba(37, 164, 100, 0.1); color: var(--accent); border: 1px solid rgba(37, 164, 100, 0.2); }
+.badge-inactive { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+.category-badge {
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+/* Skill Name Layout */
+.skill-name-cell {
+  position: relative;
+}
+.skill-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* List Elements that were acting like blocks */
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+/* Actions Column */
+.actions-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 /* Custom Checkbox */
@@ -2293,9 +2684,6 @@ watch(currentTab, (newTab) => {
 }
 
 /* Specific Cell Styling */
-.skill-name-cell {
-  display: flex; align-items: center; gap: 0.8rem;
-}
 .skill-name-cell .skill-name {
   font-weight: 600;
   color: #fff;
@@ -2313,7 +2701,7 @@ watch(currentTab, (newTab) => {
 }
 .category-select:focus { border-color: var(--accent); }
 
-.tag-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.tag-row { flex-wrap: wrap; gap: 0.4rem; }
 .tag {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
